@@ -1,0 +1,9 @@
+name: big-data-project
+channels:
+  - defaults
+dependencies:
+  - python=3.8.13
+  - pip=22.2.2
+  - git
+  - pip:
+    - git+https://github.com/LUH-DBS/DataDiscoveryBenchmark.git
