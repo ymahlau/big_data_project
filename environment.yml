@@ -6,4 +6,4 @@ dependencies:
   - pip=22.2.2
   - git
   - pip:
-    - git+https://github.com/LUH-DBS/DataDiscoveryBenchmark.git
+    - -e git+https://github.com/LUH-DBS/DataDiscoveryBenchmark.git#egg=datadiscoverybench
