@@ -4,3 +4,11 @@ src
 /src/**
 src/datadiscoverybench
 /src/datadiscoverybench/*
+
+src/**/*.zip
+src/**/*.in
+src/**/*.py
+src/**/*.parquet
+src/**/*.sql
+src/**/*.pickle
+src/**/*.gz
