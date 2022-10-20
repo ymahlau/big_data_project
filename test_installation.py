@@ -15,16 +15,30 @@ def main():
 
 
 def query_db(con: duckdb.DuckDBPyConnection, query: str) -> pd.core.frame.DataFrame:
+    """
+    query db
+    :param query: what query to execute
+    :param con: connection to database (eg: con = duckdb.connect(database=':memory:') )
+    :return: pandas dataframe with resulting table
+    """
     df = con.execute(query).fetch_df()
     print(df)
     return df
 
 
-def fetch_table(con: duckdb.DuckDBPyConnection, table_id: str) -> pd.core.frame.DataFrame:
+def fetch_table(con: duckdb.DuckDBPyConnection, table_name: str) -> pd.core.frame.DataFrame:
+    """
+    query db for given table name and transform columnar representation ['CellValue', 'TableId', 'ColumnId', 'RowId']
+    to actual tabular format. Ignores column headers contained in data.
+    :param table_name: identifier of table
+    :param con: connection to database (eg: con = duckdb.connect(database=':memory:') )
+    :return: pandas dataframe with actual columns and rows
+    author: ML
+    """
     query = f"""
         SELECT * 
         FROM AllTables
-        WHERE TableId == '{table_id}'
+        WHERE TableId == '{table_name}'
         
         """
     df = con.execute(query).fetch_df()
@@ -36,7 +50,7 @@ def fetch_table(con: duckdb.DuckDBPyConnection, table_id: str) -> pd.core.frame.
     tbl_dict = grouped_table.drop(['TableId'], axis=1).set_index('RowId').to_dict()['CellValue']
     df_tbl = pd.DataFrame.from_dict(tbl_dict, orient='index')
     df_tbl.columns = [str(x) for x in np.arange(len(df_tbl.columns.values))]
-    print(table_id)
+    print(table_name)
     print(df_tbl)
 
     return df_tbl
