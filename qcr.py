@@ -27,7 +27,7 @@ def create_hash_functions(
         ),
         lambda x: int.from_bytes(
             hashlib.sha256(str(x).encode("utf-8")).digest(), "big", signed=False
-        ),
+        ) / 2 ** 256,
     )
 
 
