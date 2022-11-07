@@ -13,9 +13,12 @@ def get_device() -> torch.device:
     return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 @torch.no_grad()
-def mse(loader: DataLoader, model: nn.Module) -> float:
+def mean_loss(
+        loader: DataLoader,
+        model: nn.Module,
+        loss_fn: nn.Module = nn.MSELoss(reduction='sum'),
+) -> float:
     device = get_device()
-    loss_fn = nn.MSELoss(reduction='sum')
     loss_sum = 0
     num_items = 0
     for x, y in loader:
@@ -41,8 +44,8 @@ def train(
         val_loader: DataLoader,
         test_loader: DataLoader,
         num_epochs: int = 2000,
-        epochs_until_eval: int = 5,
-        name: str = 'temporary'
+        epochs_until_eval: int = 20,
+        name: str = 'temporary',
 ):
     device = get_device()
     model = model.to(device)
@@ -62,7 +65,7 @@ def train(
             optim.step()
 
         if i % epochs_until_eval == 0:
-            mse_val = mse(val_loader, model)
+            mse_val = mean_loss(val_loader, model)
             print(f'Epoch {i}: {mse_val} mse val loss')
             if mse_val < best_mse_val:  # save best model
                 save_model(model, f'{name}_{i}')
@@ -74,7 +77,7 @@ def train(
 
     print(f'loading best model from epoch {best_epoch}')
     model = load_model(model, f'{name}_{best_epoch}')
-    mse_test = mse(test_loader, model)
+    mse_test = mean_loss(test_loader, model)
     print(f'Testing performance: {mse_test}')
 
 

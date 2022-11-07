@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
-from ml_utils import train
+from ml_utils import train, load_model, mean_loss
 
 who_data_fpath = Path(__file__).parent / 'data' / 'Life_Expectancy_Data.csv'
 
@@ -66,24 +66,32 @@ def build_loaders(
     loader_test = DataLoader(data_test, batch_size=batch_size, shuffle=False)
     return loader_train, loader_val, loader_test
 
+
 if __name__ == '__main__':
     train_loader, val_loader, test_loader = build_loaders()
     input_size = 20
     output_size = 1
     hidden_size = 10
     name = 'who_normal'
+    epochs_until_eval = 20
+    num_epochs = 3000
+
     model = nn.Sequential(
         nn.Linear(input_size, hidden_size),
         nn.ReLU(),
-        nn.Linear(hidden_size, output_size),
+        nn.Linear(hidden_size, hidden_size),
         nn.ReLU(),
+        nn.Linear(hidden_size, output_size)
     )
-    train(
-        model=model,
-        train_loader=train_loader,
-        val_loader=val_loader,
-        test_loader=test_loader,
-        name=name,
-    )
-
-
+    # train(
+    #     model=model,
+    #     train_loader=train_loader,
+    #     val_loader=val_loader,
+    #     test_loader=test_loader,
+    #     name=name,
+    #     epochs_until_eval=epochs_until_eval,
+    #     num_epochs=num_epochs,
+    # )
+    load_model(model=model, name=f'{name}_1340')
+    loss = mean_loss(test_loader, model, loss_fn=nn.L1Loss(reduction='sum'))
+    print(loss)
