@@ -23,10 +23,10 @@ def create_hash_functions(
 
     return (
         lambda x: int.from_bytes(
-            hashlib.sha256(x.encode("utf-8")).digest(), "big", signed=False
+            hashlib.md5(x.encode("utf-8")).digest(), "little", signed=True
         ),
         lambda x: int.from_bytes(
-            hashlib.sha256(str(x).encode("utf-8")).digest(), "big", signed=False
+            hashlib.md5(str(x).encode("utf-8")).digest(), "little", signed=True
         ) / 2 ** 256,
     )
 
@@ -36,7 +36,7 @@ def create_sketch(
     C: List[numeric],
     h: Callable[[str], int],
     hu: Callable[[int], int],
-    n=1000,
+    n=100,
 ) -> List[Tuple[str, numeric]]:
     """
     Create sketch
@@ -72,7 +72,7 @@ def build_index() -> None:
         KC = get_kc(table)
         C = get_c(table)
         h, hu = create_hash_functions(KC, C)
-        sketch = create_sketch(KC, C, h, hu, 20)
+        sketch = create_sketch(KC, C, h, hu)
         terms = tk(sketch, h)
         table_id = get_table_id(table)
         add_to_inverted_index(inverted_index, terms, table_id)
@@ -84,7 +84,7 @@ def find_tables(query: pd.DataFrame) -> List[str]:
     KC = get_kc(query)
     C = get_c(query)
     h, hu = create_hash_functions(KC, C)
-    sketch = create_sketch(KC, C, h, hu, 20)
+    sketch = create_sketch(KC, C, h, hu)
     terms = tk(sketch, h)
     anti_terms = tk(
         list(map((lambda key_value: (key_value[0], -key_value[1])), sketch)), h
@@ -133,7 +133,7 @@ def load_tables() -> List[pd.DataFrame]:
 def load_query() -> pd.DataFrame:
     # Loads query table as pandas dataframe from csv file
 
-    return pd.read_csv("toy_tables/A_1.csv", sep=";")
+    return pd.read_csv("toy_tables/A_0.csv", sep=";")
 
 
 def get_kc(table: pd.DataFrame) -> List[str]:

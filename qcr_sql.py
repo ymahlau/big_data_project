@@ -1,7 +1,8 @@
 import pandas as pd
 import duckdb
 
-from utils import load_dataframe_to_db
+from utils import load_dataframes_to_db
+
 
 def get_column_pairs(table_name) -> str:
     query = f"""
@@ -22,6 +23,7 @@ def get_numerical_columns(table_name) -> str:
     """
     return query
 
+
 def get_categorical_columns(table_name) -> str:
     query = f"""
     select TableID, ColumnID as categorical_column_id
@@ -31,10 +33,11 @@ def get_categorical_columns(table_name) -> str:
     """
     return query
 
-def get_sketches(table_name, sketch_size = 100):
+
+def get_sketches(table_name, sketch_size=100):
     full = f"""
-    select Categorical.TableId as TableID, Categorical.CellValue as Category, avg(CAST(Numerical.CellValue as DOUBLE)) as Value,
-        row_number() over (Partition by Categorical.TableId order by md5_number(Categorical.CellValue)) as RowNumber
+    select concat(Categorical.TableId, '__', Categorical.ColumnID, '_', Numerical.ColumnID) as TableID, Categorical.CellValue as Category, avg(CAST(Numerical.CellValue as DOUBLE)) as Value,
+        row_number() over (Partition by Categorical.TableId, Categorical.ColumnID, Numerical.ColumnID order by md5_number(Categorical.CellValue)) as RowNumber
     from {table_name} Categorical
         join {table_name} Numerical
             on Categorical.TableId = Numerical.TableId
@@ -46,7 +49,7 @@ def get_sketches(table_name, sketch_size = 100):
 
     where Numerical.CellValue != 'nan'
 
-    group by Categorical.TableId, Categorical.CellValue
+    group by Categorical.TableId, Categorical.ColumnID, Numerical.ColumnID, Categorical.CellValue
 
     """
 
@@ -69,6 +72,7 @@ def get_terms(table_name):
     """
     return query
 
+
 def create_inverted_index(con, table_name, index_name):
     query = get_terms(table_name)
     query = f"create or replace view {index_name} as \n" + query
@@ -79,7 +83,7 @@ def search_inverted_index(con, table_name, index_name):
     create_inverted_index(con, table_name, table_name + "Index")
 
     query = f"""
-    select TableID + {table_name}, count(*) as Count
+    select concat(TableID, '-{table_name}') as ID, count(*) as Count
     from {index_name}
     where term in (select term from {table_name + "Index"})
     group by TableID
@@ -87,24 +91,31 @@ def search_inverted_index(con, table_name, index_name):
 
     return query
 
-def search_correlated(con: duckdb.DuckDBPyConnection,df: pd.DataFrame):
-    load_dataframe_to_db(con, df, "TmpTablePlus")
-    t_plus = search_inverted_index(con, "TmpTablePlus", "TermIndex")
 
-    df = df.copy()
+def search_correlated(con: duckdb.DuckDBPyConnection, df: pd.DataFrame, index_name: str, limit=10) -> pd.DataFrame:
+    load_dataframes_to_db(con, [df], "QPlus")
+    t_plus = search_inverted_index(con, "QPlus", index_name)
+
     # Invert all numerical columns
+    df = df.copy()
     for col in df.select_dtypes(include=['number']).columns:
         df[col] = -df[col]
-    
 
-    load_dataframe_to_db(con, df, "TmpTableMinus")
-    t_minus = search_inverted_index(con, "TmpTableMinus", "TermIndex")
+    load_dataframes_to_db(con, [df], "QMinus")
+    t_minus = search_inverted_index(con, "QMinus", index_name)
 
     query = f"""
     {t_plus}
     union all
     {t_minus}
     order by Count desc
+    limit {limit}
     """
 
-    con.execute(query).fetch_df()
+    result = con.execute(query).fetch_df()
+    con.execute("DROP TABLE QPlus")
+    con.execute("DROP TABLE QMinus")
+    con.execute("DROP VIEW QPlusIndex")
+    con.execute("DROP VIEW QMinusIndex")
+
+    return result
