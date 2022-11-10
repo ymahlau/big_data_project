@@ -13,7 +13,7 @@ from ml_utils import train, load_model, mean_loss
 who_data_fpath = Path(__file__).parent / 'data' / 'Life_Expectancy_Data.csv'
 
 def load_who_data() -> pd.DataFrame:
-    df_who = pd.read_csv(who_data_fpath)
+    df_who = pd.read_csv(who_data_fpath, sep=';')
     # exclude all rows that have at least one nan value
     df_filtered = df_who[df_who.notnull().all(axis=1)]
     # convert categorical 'developing' and 'developed' to numerical 0/1 flag
