@@ -6,12 +6,12 @@ from datadiscoverybench.utils import load_dresden_db, load_git_tables_db
 
 def main():
     con = duckdb.connect(database=':memory:')
-    # load_dresden_db(con, parts=[0,1])
-    load_git_tables_db(con)
+    load_dresden_db(con, parts=[0, 1])
+    # load_git_tables_db(con)
 
-    query_db(con, 'SELECT * FROM AllTables LIMIT 5')
+    query_db(con, 'SELECT DISTINCT TableId FROM AllTables LIMIT 100')
 
-    fetch_table(con, "allegro_con_spirito_tables_licensed_sentiments_35")
+    # fetch_table(con, "allegro_con_spirito_tables_licensed_dictionary")
 
 
 def query_db(con: duckdb.DuckDBPyConnection, query: str) -> pd.core.frame.DataFrame:
@@ -22,6 +22,7 @@ def query_db(con: duckdb.DuckDBPyConnection, query: str) -> pd.core.frame.DataFr
     :return: pandas dataframe with resulting table
     """
     df = con.execute(query).fetch_df()
+    pd.set_option('display.max_rows', df.shape[0] + 1)
     print(df)
     return df
 
