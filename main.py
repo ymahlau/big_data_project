@@ -1,10 +1,12 @@
-import duckdb
-import pandas as pd
-import numpy as np
-from datadiscoverybench.utils import load_dresden_db, load_git_tables_db
+import sys
 import time
 
-from qcr_sql import create_inverted_index
+import duckdb
+from datadiscoverybench.utils import load_dresden_db, load_git_tables_db
+
+from utils import load_dataframe, load_dataframe_to_db
+from qcr_sql import create_inverted_index, search_inverted_index
+
 
 
 def main():
@@ -12,27 +14,12 @@ def main():
     # load_dresden_db(con, parts=[0,1])
     load_git_tables_db(con, parts=['allegro_con_spirito_tables_licensed', "abstraction_tables_licensed"])
 
-    start = time.time()
-    create_inverted_index(con)
-    query = "select * from TermIndex limit 10"
-    print(time.time() - start)
-
-    query_db(con, query)
-    print(time.time() - start)
-
-
-
-def query_db(con: duckdb.DuckDBPyConnection, query: str) -> pd.core.frame.DataFrame:
-    """
-    query db
-    :param query: what query to execute
-    :param con: connection to database (eg: con = duckdb.connect(database=':memory:') )
-    :return: pandas dataframe with resulting table
-    """
-    df = con.execute(query).fetch_df()
-    print(df)
-    return df
-
+    if len(sys.argv) < 1:
+        create_inverted_index(con, "AllTables", "TermIndex")
+    else:
+        df = load_dataframe(sys.argv[1])
+        load_dataframe_to_db(con, df)
+        search_inverted_index(con, "Query", "TermIndex")
 
 
 
