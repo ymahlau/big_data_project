@@ -1,97 +1,56 @@
 import math
-import random
 from pathlib import Path
+import random
 from typing import Tuple, List
 
 import pandas as pd
-import torch
-import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
+from autogluon.tabular import TabularDataset, TabularPredictor
 
-from ml_utils import train, load_model, mean_loss
-
+model_path = Path(__file__).parent / 'models'
 who_data_fpath = Path(__file__).parent / 'data' / 'Life_Expectancy_Data.csv'
 
 def load_who_data() -> pd.DataFrame:
     df_who = pd.read_csv(who_data_fpath, sep=';')
     # exclude all rows that have at least one nan value
-    df_filtered = df_who[df_who.notnull().all(axis=1)]
-    # convert categorical 'developing' and 'developed' to numerical 0/1 flag
-    df_filtered = df_filtered.replace('Developing', 0)
-    df_filtered = df_filtered.replace('Developed', 1)
-    return df_filtered
+    df_who = df_who[df_who.notnull().all(axis=1)]
+    return df_who
 
-# Select rows as 80%-train, 10%-validation, 10%-test split
-def generate_indices(n: int) -> Tuple[List[int], List[int], List[int]]:
-    n_train, n_val = math.floor(0.8 * n), math.floor(0.1 * n)
-    n_test = n - n_train - n_val
+# Select rows as 90%-train, 10%-test split
+def generate_indices(n: int) -> Tuple[List[int], List[int]]:
+    n_train = math.floor(0.9 * n)
     row_idx = list(range(n))
     row_idx_train = random.sample(row_idx, k=n_train)
-    remaining_idx = list(set(row_idx) - set(row_idx_train))
-    row_idx_val = random.sample(remaining_idx, k=n_val)
-    row_idx_test = list(set(remaining_idx) - set(row_idx_val))
-    return row_idx_train, row_idx_val, row_idx_test
+    row_idx_test = list(set(row_idx) - set(row_idx_train))
+    return row_idx_train, row_idx_test
 
-
-# Pytorch Dataset class
-class WHODataset(Dataset):
-    def __init__(self, data: pd.DataFrame, indices: List[int]):
-        data_select = data.iloc[indices]
-        self.y_df = data_select[['Life expectancy ']]  # life expectancy is the target
-        self.Y = torch.tensor(self.y_df.values).squeeze().float()
-        self.x_df = data_select.loc[:, data_select.columns != 'Life expectancy ']  # remove target
-        self.x_df = self.x_df.loc[:, self.x_df.columns != 'Country']  # remove country categorical value (query)
-        self.X = torch.tensor(self.x_df.values).float()
-
-    def __getitem__(self, index) -> Tuple[torch.tensor, torch.tensor]:
-        return self.X[index], self.Y[index]
-
-    def __len__(self):
-        return self.X.shape[0]
-
-
-def build_loaders(
-        batch_size: int = 64,
-) -> Tuple[DataLoader, DataLoader, DataLoader]:
-    df_who = load_who_data()
-    n = len(df_who)
-    idx_train, idx_val, idx_test = generate_indices(n)
-
-    data_train = WHODataset(df_who, idx_train)
-    data_val = WHODataset(df_who, idx_val)
-    data_test = WHODataset(df_who, idx_test)
-
-    loader_train = DataLoader(data_train, batch_size=batch_size, shuffle=True)
-    loader_val = DataLoader(data_val, batch_size=batch_size, shuffle=False)
-    loader_test = DataLoader(data_test, batch_size=batch_size, shuffle=False)
-    return loader_train, loader_val, loader_test
-
+def compute_splits(data: pd.DataFrame) -> Tuple[TabularDataset, TabularDataset, str]:
+    idx_train, idx_test = generate_indices(len(df))
+    data_train, data_test = data.iloc[idx_train], data.iloc[idx_test]
+    # remove country categorical value (query)
+    data_train = TabularDataset(data_train.loc[:, data_train.columns != 'Country'])
+    data_test = TabularDataset(data_test.loc[:, data_test.columns != 'Country'])
+    lbl = 'Life expectancy '
+    return data_train, data_test, lbl
 
 if __name__ == '__main__':
-    train_loader, val_loader, test_loader = build_loaders()
-    input_size = 20
-    output_size = 1
-    hidden_size = 10
-    name = 'who_normal'
-    epochs_until_eval = 20
-    num_epochs = 3000
+    df = load_who_data()
+    train_data, test_data, label = compute_splits(df)
+    save_dst = model_path / 'who_best'
+    time_limit = 1200
+    retrain = False
+    presets = 'best_quality'  # default is 'medium_quality'
 
-    model = nn.Sequential(
-        nn.Linear(input_size, hidden_size),
-        nn.ReLU(),
-        nn.Linear(hidden_size, hidden_size),
-        nn.ReLU(),
-        nn.Linear(hidden_size, output_size)
-    )
-    # train(
-    #     model=model,
-    #     train_loader=train_loader,
-    #     val_loader=val_loader,
-    #     test_loader=test_loader,
-    #     name=name,
-    #     epochs_until_eval=epochs_until_eval,
-    #     num_epochs=num_epochs,
-    # )
-    load_model(model=model, name=f'{name}_1340')
-    loss = mean_loss(test_loader, model, loss_fn=nn.L1Loss(reduction='sum'))
-    print(loss)
+    if retrain:
+        predictor = TabularPredictor(label=label, path=save_dst)
+        predictor.fit(train_data=train_data, time_limit=time_limit, presets=presets)
+    else:
+        predictor = TabularPredictor.load(str(save_dst))
+
+    performance = predictor.evaluate(test_data)
+    leaderboard = predictor.leaderboard(test_data)
+
+    test_data_no_label = test_data.drop(columns=[label])
+    y_pred = predictor.predict(test_data_no_label)
+    y_true = test_data[label]
+
+    print('Done')
