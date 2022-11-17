@@ -92,9 +92,39 @@ def search_inverted_index(con, table_name, index_name):
     return query
 
 
-def search_correlated(con: duckdb.DuckDBPyConnection, df: pd.DataFrame, index_name: str, limit=10) -> pd.DataFrame:
+def create_joined_table(con: duckdb.DuckDBPyConnection, df: pd.DataFrame, joinables, master_table_name):
+    table_name = df.columns.name + "_result"
+    query_table_query = f"""
+            create or replace table {table_name} as
+            select a.cellvalue as ID, b.cellvalue as value
+            from {master_table_name} a join {master_table_name} b on a.TableId=b.Tableid
+            and a.RowId = b.RowId and a.ColumnId < b.ColumnId
+            where a.TableId = '{df.columns.name}'
+            """
+    con.execute(query_table_query)
+    for x in joinables:
+        if x != df.columns.name:   #alltables(cellvalue, rowId, columnID, tableID)
+            print(x)
+            sub_query= f"""
+            select a.cellvalue as ID, b.cellvalue as value
+            from {master_table_name} a join {master_table_name} b on a.TableId=b.Tableid
+            and a.RowId = b.RowId and a.ColumnId < b.ColumnId
+            where a.TableId = '{x}'
+            """
+            full_query = f"""
+            create or replace table {table_name} as 
+            select q.*, sq.value from {table_name} q left join ({sub_query}) sq on q.ID=sq.ID """
+            con.execute(full_query)
+    print(con.execute(f"select * from {table_name}").fetch_df())
+    con.execute(f"COPY {table_name} TO '{table_name}.csv' (DELIMITER ';', HEADER)")
+
+            
+    
+
+def search_correlated(con: duckdb.DuckDBPyConnection, df: pd.DataFrame, index_name: str, master_table_name: str, limit=10) -> pd.DataFrame:
     load_dataframes_to_db(con, [df], "QPlus")
-    t_plus = search_inverted_index(con, "QPlus", index_name)
+    
+    s_plus = search_inverted_index(con, "QPlus", index_name)
 
     # Invert all numerical columns
     df = df.copy()
@@ -102,20 +132,30 @@ def search_correlated(con: duckdb.DuckDBPyConnection, df: pd.DataFrame, index_na
         df[col] = -df[col]
 
     load_dataframes_to_db(con, [df], "QMinus")
-    t_minus = search_inverted_index(con, "QMinus", index_name)
+    s_minus = search_inverted_index(con, "QMinus", index_name)
 
     query = f"""
-    {t_plus}
+    {s_plus}
     union all
-    {t_minus}
+    {s_minus}
     order by Count desc
     limit {limit}
     """
 
+
     result = con.execute(query).fetch_df()
+
+
     con.execute("DROP TABLE QPlus")
     con.execute("DROP TABLE QMinus")
     con.execute("DROP VIEW QPlusIndex")
     con.execute("DROP VIEW QMinusIndex")
+    
+    to_join =[]
+    for x in result.ID:
+        end = x.index('__')
+        to_join.append(x[:end])
+    create_joined_table(con, df, to_join, master_table_name)
+
 
     return result
