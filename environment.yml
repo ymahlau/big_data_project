@@ -7,3 +7,4 @@ dependencies:
   - git
   - pip:
     - -e git+https://github.com/LUH-DBS/DataDiscoveryBenchmark.git#egg=datadiscoverybench
+    - autogluon==0.6.0
