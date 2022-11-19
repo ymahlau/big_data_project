@@ -14,22 +14,25 @@ def load_csvs_to_dataframes(path: Path) -> List[pd.DataFrame]:
     """
     frames = []
     for file in path.iterdir():
-        if file.suffix == '.csv':
+        if file.suffix == ".csv":
             df = load_csv_to_dataframe(file)
             frames.append(df)
 
     return frames
 
 
-def load_csvs_to_db(con: duckdb.DuckDBPyConnection, path=Path(__file__).parent / 'toy_tables',
-                    big_table_name="AllTables") -> None:
+def load_csvs_to_db(
+    con: duckdb.DuckDBPyConnection,
+    parts=[Path(__file__).parent / "toy_tables"],
+    big_table_name="AllTables",
+) -> None:
     """
     load all csv files in a directory into a database
     :param con: connection to database (eg: con = duckdb.connect(database=':memory:') )
     :param path: path to directory containing csv files
     :param big_table_name: name of the table to create containing all tables
     """
-    frames = load_csvs_to_dataframes(path)
+    frames = load_csvs_to_dataframes(parts[0])  # Todo: Iterate over all parts
     load_dataframes_to_db(con, frames, big_table_name)
 
 
@@ -40,20 +43,22 @@ def load_csv_to_dataframe(path: Union[Path, str]) -> pd.DataFrame:
     :return: pandas dataframe
     """
     path = Path(path)
-    df = pd.read_csv(path, sep=';')
+    df = pd.read_csv(path, sep=";")
     df.columns.name = path.stem
 
     return df
 
 
-def load_dataframes_to_db(con: duckdb.DuckDBPyConnection, frames: List[pd.DataFrame], table_name: str) -> None:
+def load_dataframes_to_db(
+    con: duckdb.DuckDBPyConnection, frames: List[pd.DataFrame], table_name: str
+) -> None:
     """
     load a list of dataframes into a database
     :param con: connection to database (eg: con = duckdb.connect(database=':memory:') )
     :param frames: list of dataframes to load
     :param table_name: name of the table to create containing all tables
     """
-    d = {'CellValue': [], 'TableId': [], 'ColumnId': [], 'RowId': []}
+    d = {"CellValue": [], "TableId": [], "ColumnId": [], "RowId": []}
     for df in frames:
         for (row_id, column_id), value in np.ndenumerate(df.values):
             d["CellValue"].append(str(value))
@@ -72,7 +77,7 @@ def save_database(con: duckdb.DuckDBPyConnection, path: str = "data/database") -
     :param con: connection to database (eg: con = duckdb.connect(database=':memory:') )
     :param path: path to save the database to
     """
-    con.execute(f"EXPORT DATABASE '{path}' (FORMAT CSV, DELIMITER ';')")
+    con.execute(f"EXPORT DATABASE '{path}' (FORMAT PARQUET)")
 
 
 def load_database(con: duckdb.DuckDBPyConnection, path: str = "data/database") -> None:
@@ -81,7 +86,8 @@ def load_database(con: duckdb.DuckDBPyConnection, path: str = "data/database") -
     :param con: connection to database (eg: con = duckdb.connect(database=':memory:') )
     :param path: path to load the database from
     """
-    con.execute(f"IMPORT DATABASE '{path}'")
+    if Path(path).exists():
+        con.execute(f"IMPORT DATABASE '{path}'")
 
 
 def query_db(con: duckdb.DuckDBPyConnection, query: str) -> pd.DataFrame:

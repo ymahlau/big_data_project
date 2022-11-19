@@ -47,11 +47,11 @@ def get_sketches(table_name, sketch_size=100):
                 and Categorical.ColumnID = Pairs.categorical_column_id
                 and Numerical.ColumnID = Pairs.numerical_column_id
 
-    where Numerical.CellValue != 'nan'
+    where isfinite(TRY_CAST(Numerical.CellValue as DOUBLE))
 
     group by Categorical.TableId, Categorical.ColumnID, Numerical.ColumnID, Categorical.CellValue
 
-    """
+    """  # Todo: Check why try_cast is needed
 
     query = f"""
     select TableID, Category, Value
@@ -73,9 +73,30 @@ def get_terms(table_name):
     return query
 
 
-def create_inverted_index(con, table_name, index_name):
+def create_inverted_index(
+    con: duckdb.DuckDBPyConnection, table_name, index_name, union_old=False
+):
     query = get_terms(table_name)
-    query = f"create or replace view {index_name} as \n" + query
+    index_exists = None
+    if union_old:
+        index_exists = (
+            con.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                [index_name],
+            )
+            .df()
+            .size
+        )
+        print(index_exists)
+        if index_exists:
+            query = f"""
+            insert into {index_name}
+            {query}
+            """
+
+    if not union_old or not index_exists:
+        query = f"create or replace table {index_name} as \n" + query
+
     con.execute(query)
 
 
@@ -92,7 +113,9 @@ def search_inverted_index(con, table_name, index_name):
     return query
 
 
-def create_joined_table(con: duckdb.DuckDBPyConnection, df: pd.DataFrame, joinables, master_table_name):
+def create_joined_table(
+    con: duckdb.DuckDBPyConnection, df: pd.DataFrame, joinables, master_table_name
+):
     table_name = df.columns.name + "_result"
     query_table_query = f"""
             create or replace table {table_name} as
@@ -103,9 +126,9 @@ def create_joined_table(con: duckdb.DuckDBPyConnection, df: pd.DataFrame, joinab
             """
     con.execute(query_table_query)
     for x in joinables:
-        if x != df.columns.name:   #alltables(cellvalue, rowId, columnID, tableID)
+        if x != df.columns.name:  # alltables(cellvalue, rowId, columnID, tableID)
             print(x)
-            sub_query= f"""
+            sub_query = f"""
             select a.cellvalue as ID, b.cellvalue as value
             from {master_table_name} a join {master_table_name} b on a.TableId=b.Tableid
             and a.RowId = b.RowId and a.ColumnId < b.ColumnId
@@ -118,17 +141,21 @@ def create_joined_table(con: duckdb.DuckDBPyConnection, df: pd.DataFrame, joinab
     print(con.execute(f"select * from {table_name}").fetch_df())
     con.execute(f"COPY {table_name} TO '{table_name}.csv' (DELIMITER ';', HEADER)")
 
-            
-    
 
-def search_correlated(con: duckdb.DuckDBPyConnection, df: pd.DataFrame, index_name: str, master_table_name: str, limit=10) -> pd.DataFrame:
+def search_correlated(
+    con: duckdb.DuckDBPyConnection,
+    df: pd.DataFrame,
+    index_name: str,
+    master_table_name: str = None,
+    limit=10,
+) -> pd.DataFrame:
     load_dataframes_to_db(con, [df], "QPlus")
-    
+
     s_plus = search_inverted_index(con, "QPlus", index_name)
 
     # Invert all numerical columns
     df = df.copy()
-    for col in df.select_dtypes(include=['number']).columns:
+    for col in df.select_dtypes(include=["number"]).columns:
         df[col] = -df[col]
 
     load_dataframes_to_db(con, [df], "QMinus")
@@ -142,20 +169,18 @@ def search_correlated(con: duckdb.DuckDBPyConnection, df: pd.DataFrame, index_na
     limit {limit}
     """
 
-
     result = con.execute(query).fetch_df()
-
 
     con.execute("DROP TABLE QPlus")
     con.execute("DROP TABLE QMinus")
-    con.execute("DROP VIEW QPlusIndex")
-    con.execute("DROP VIEW QMinusIndex")
-    
-    to_join =[]
-    for x in result.ID:
-        end = x.index('__')
-        to_join.append(x[:end])
-    create_joined_table(con, df, to_join, master_table_name)
+    con.execute("DROP TABLE QPlusIndex")
+    con.execute("DROP TABLE QMinusIndex")
 
+    if master_table_name:
+        to_join = []
+        for x in result.ID:
+            end = x.index("__")
+            to_join.append(x[:end])
+        create_joined_table(con, df, to_join, master_table_name)
 
     return result
