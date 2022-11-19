@@ -12,8 +12,6 @@ who_data_fpath = Path(__file__).parent / 'data' / 'song_data.csv'
 
 def load_song_data() -> pd.DataFrame:
     df_song = pd.read_csv(who_data_fpath, sep=',')
-    # make target column numeric float
-    df_song.iloc[:, 1] = pd.to_numeric(df_song.iloc[:, 1], downcast='float')
     return df_song
 
 def load_song_query() -> pd.DataFrame:
@@ -39,7 +37,7 @@ if __name__ == '__main__':
     retrain = True
 
     if retrain:
-        predictor = TabularPredictor(label=label, path=save_dst)
+        predictor = TabularPredictor(label=label, path=save_dst, problem_type='regression')
         predictor.fit(train_data=train_split, time_limit=time_limit)
     else:
         predictor = TabularPredictor.load(str(save_dst))

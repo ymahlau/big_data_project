@@ -39,7 +39,7 @@ if __name__ == '__main__':
     query = load_who_query()
 
     if retrain:
-        predictor = TabularPredictor(label=label, path=save_dst)
+        predictor = TabularPredictor(label=label, path=save_dst, problem_type='regression')
         predictor.fit(train_data=train_data, time_limit=time_limit)
     else:
         predictor = TabularPredictor.load(str(save_dst))
