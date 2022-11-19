@@ -26,10 +26,19 @@ def create_hash_functions() -> Tuple[Callable[[str], int], Callable[[int], int]]
             hashlib.md5(x.encode("utf-8")).digest(), "little", signed=True
         ),
         lambda x: int.from_bytes(
-            hashlib.md5(str(x).encode("utf-8")).digest(), "little", signed=True
+            hashlib.md5(str(x).encode("utf-8")).digest(), "little", signed=False
         ) / 2 ** 256,
     )
 
+def hash_function(obj: str) -> float:
+    """
+    Hashes a string to a value between 0 and 1
+    :param obj: String to hash
+    :return: hash value
+    """
+    return int.from_bytes(
+        hashlib.md5(str(obj).encode("utf-8")).digest(), "little", signed=True
+    ) / 2 ** 256
 
 def create_sketch(
     KC: List[str],
@@ -54,7 +63,7 @@ def generate_term_keys(sketch: List[Tuple[str, numeric]], h: Callable[[str], int
 
 
 def add_to_inverted_index(
-    inverted_index: DefaultDict[int, Set[str]], terms: List[int], value: str
+    inverted_index: DefaultDict[int, Set[str]], terms: List[Union[int, str]], value: str
 ) -> None:
     """
     Add value to inverted index
@@ -63,9 +72,8 @@ def add_to_inverted_index(
         inverted_index[term].add(value)
 
 
-def build_index() -> None:
+def build_index(tables: List[pd.DataFrame]) -> None:
     inverted_index = load_index()
-    tables = load_tables()
 
     for table in tables:
         KC = get_kc(table)
@@ -118,11 +126,11 @@ def save_index(index: DefaultDict[int, Set[str]]) -> None:
         pickle.dump(index, f)
 
 
-def load_tables() -> List[pd.DataFrame]:
+def load_tables(folder_name) -> List[pd.DataFrame]:
     # Loads all tables as pandas dataframe from csv files
 
     tables = []
-    for path in Path("toy_tables").glob("*.csv"):
+    for path in Path(folder_name).glob("*.csv"):
         table = pd.read_csv(path, sep=";")
         table.columns.name = path.stem
         tables.append(table)
@@ -156,7 +164,7 @@ def get_table_id(table: pd.DataFrame) -> str:
 
 
 if __name__ == "__main__":
-    build_index()
+    build_index(load_tables("toy_tables"))
     print(find_tables(load_query()))
 
     # Delete index file for debug purposes
