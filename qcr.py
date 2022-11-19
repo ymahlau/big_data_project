@@ -1,4 +1,4 @@
-from typing import Callable, Tuple, List, DefaultDict, Set
+from typing import Callable, Tuple, List, DefaultDict, Set, Union
 import heapq
 from collections import defaultdict
 import pickle
@@ -14,9 +14,9 @@ from collections import Counter
 #############################################
 
 
-def create_hash_functions(
-    KC: List[str], C: List[numeric]
-) -> Tuple[Callable[[str], int], Callable[[int], int]]:
+
+
+def create_hash_functions() -> Tuple[Callable[[str], int], Callable[[int], int]]:
     """
     Create hash functions h and hu
     """
@@ -34,18 +34,17 @@ def create_hash_functions(
 def create_sketch(
     KC: List[str],
     C: List[numeric],
-    h: Callable[[str], int],
-    hu: Callable[[int], int],
-    n=100,
+    hash_function: Callable[[str], int],
+    n=100
 ) -> List[Tuple[str, numeric]]:
     """
     Create sketch
     """
 
-    return heapq.nsmallest(n, zip(KC, C), key=lambda x: hu(h(x[0])))
+    return heapq.nsmallest(n, zip(KC, C), key=lambda x: hash_function(x[0]))
 
 
-def tk(sketch: List[Tuple[str, numeric]], h: Callable[[str], int]) -> List[int]:
+def generate_term_keys(sketch: List[Tuple[str, numeric]], h: Callable[[str], int] = lambda x: x) -> List[Union[int, str]]:
     """
     Generate term keys for sketch
     """
@@ -71,9 +70,9 @@ def build_index() -> None:
     for table in tables:
         KC = get_kc(table)
         C = get_c(table)
-        h, hu = create_hash_functions(KC, C)
-        sketch = create_sketch(KC, C, h, hu)
-        terms = tk(sketch, h)
+        h, hu = create_hash_functions()
+        sketch = create_sketch(KC, C, hash_function)
+        terms = generate_term_keys(sketch, h)
         table_id = get_table_id(table)
         add_to_inverted_index(inverted_index, terms, table_id)
 
@@ -83,10 +82,10 @@ def build_index() -> None:
 def find_tables(query: pd.DataFrame) -> List[str]:
     KC = get_kc(query)
     C = get_c(query)
-    h, hu = create_hash_functions(KC, C)
-    sketch = create_sketch(KC, C, h, hu)
-    terms = tk(sketch, h)
-    anti_terms = tk(
+    h, hu = create_hash_functions()
+    sketch = create_sketch(KC, C, hash_function)
+    terms = generate_term_keys(sketch, h)
+    anti_terms = generate_term_keys(
         list(map((lambda key_value: (key_value[0], -key_value[1])), sketch)), h
     )
     inverted_index = load_index()
@@ -97,7 +96,8 @@ def find_tables(query: pd.DataFrame) -> List[str]:
     result.update(
         "-:" + table_id for term in anti_terms for table_id in inverted_index[term]
     )
-    return result.most_common(10)
+    matches = result.most_common(10)
+    return matches
 
 
 #############################################
