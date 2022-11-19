@@ -1,27 +1,20 @@
-import math
 from pathlib import Path
-import random
 from typing import Tuple, List
 
 import pandas as pd
 from autogluon.tabular import TabularDataset, TabularPredictor
 
+from ml_utils import generate_indices
+
 model_path = Path(__file__).parent / 'models'
+model_path.mkdir(exist_ok=True, parents=True)
 who_data_fpath = Path(__file__).parent / 'data' / 'Life_Expectancy_Data.csv'
 
 def load_who_data() -> pd.DataFrame:
     df_who = pd.read_csv(who_data_fpath, sep=';')
-    # exclude all rows that have at least one nan value
-    df_who = df_who[df_who.notnull().all(axis=1)]
+    df_who = df_who[df_who.iloc[:, 3].notna()]  # target cannot be NaN
+    # df_who = df_who[df_who.notnull().all(axis=1)]  # this would drop all NaN, but loses a lot of data
     return df_who
-
-# Select rows as 90%-train, 10%-test split
-def generate_indices(n: int) -> Tuple[List[int], List[int]]:
-    n_train = math.floor(0.9 * n)
-    row_idx = list(range(n))
-    row_idx_train = random.sample(row_idx, k=n_train)
-    row_idx_test = list(set(row_idx) - set(row_idx_train))
-    return row_idx_train, row_idx_test
 
 def compute_splits(data: pd.DataFrame) -> Tuple[TabularDataset, TabularDataset, str]:
     idx_train, idx_test = generate_indices(len(df))
@@ -32,17 +25,22 @@ def compute_splits(data: pd.DataFrame) -> Tuple[TabularDataset, TabularDataset, 
     lbl = 'Life expectancy '
     return data_train, data_test, lbl
 
+def load_who_query() -> pd.DataFrame:
+    df_who = load_who_data()
+    query_with_duplicates = df_who.iloc[:, [0, 3]]
+    return query_with_duplicates
+
 if __name__ == '__main__':
     df = load_who_data()
     train_data, test_data, label = compute_splits(df)
-    save_dst = model_path / 'who_best'
-    time_limit = 1200
-    retrain = False
-    presets = 'best_quality'  # default is 'medium_quality'
+    save_dst = model_path / 'who_medium'
+    time_limit = 1200  # 20min is plenty
+    retrain = True
+    query = load_who_query()
 
     if retrain:
         predictor = TabularPredictor(label=label, path=save_dst)
-        predictor.fit(train_data=train_data, time_limit=time_limit, presets=presets)
+        predictor.fit(train_data=train_data, time_limit=time_limit)
     else:
         predictor = TabularPredictor.load(str(save_dst))
 
