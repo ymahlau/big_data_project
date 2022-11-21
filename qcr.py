@@ -171,7 +171,6 @@ def get_c(table: pd.DataFrame) -> List[numeric]:
 
 
 def get_table_id(table: pd.DataFrame) -> str:
-    print(table.columns.name)
     return table.columns.name
 
 
