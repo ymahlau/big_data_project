@@ -81,7 +81,7 @@ def build_index(tables: List[pd.DataFrame]) -> None:
         c = get_c(table)
         h, hu = create_hash_functions()
         sketch = create_sketch(kc, c, hash_function)
-        terms = generate_term_keys(sketch, h)
+        terms = generate_term_keys(sketch)# (sketch, h)
         table_id = get_table_id(table)
         add_to_inverted_index(inverted_index, terms, table_id)
 
@@ -93,10 +93,9 @@ def find_tables(query: pd.DataFrame) -> List[Tuple[Any, int]]:
     c = get_c(query)
     h, hu = create_hash_functions()
     sketch = create_sketch(kc, c, hash_function)
-    terms = generate_term_keys(sketch, h)
+    terms = generate_term_keys(sketch)# (sketch, h)
     anti_terms = generate_term_keys(
-        list(map((lambda key_value: (key_value[0], -key_value[1])), sketch)), h
-    )
+        list(map((lambda key_value: (key_value[0], -key_value[1])), sketch))) #, h)
     inverted_index = load_index()
     result = Counter()
     result.update(
