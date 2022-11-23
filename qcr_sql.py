@@ -146,8 +146,9 @@ def search_correlated(
     con: duckdb.DuckDBPyConnection,
     df: pd.DataFrame,
     index_name: str,
+    limit: int,
+    weighting:float,
     master_table_name: str = None,
-    limit=10,
 ) -> pd.DataFrame:
     load_dataframes_to_db(con, [df], "QPlus")
 
