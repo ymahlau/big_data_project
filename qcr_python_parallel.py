@@ -13,7 +13,7 @@ import pandas as pd
 from tqdm import tqdm
 import duckdb
 
-from datadiscoverybench.utils import load_dresden_db
+# from datadiscoverybench.utils import load_dresden_db
 from qcr import save_index, get_kc, get_c, create_sketch, hash_function, generate_term_keys, get_table_id, \
     add_to_inverted_index, load_index
 
@@ -26,9 +26,9 @@ stats_file_path = Path(__file__).parent / 'stats.txt'
 # database connection
 print(f'Process: {os.getpid()} started connecting to db')
 database_path = "/home/groupb/database_v051.db"
-# con = duckdb.connect(database=database_path)
-con = duckdb.connect(database=':memory:')
-load_dresden_db(con, parts=[0, 1])
+con = duckdb.connect(database=database_path)
+# con = duckdb.connect(database=':memory:')
+# load_dresden_db(con, parts=[0, 1])
 
 def get_column_pairs(table) -> List[pd.DataFrame]:
     kc_list = table.select_dtypes(include=["object"]).columns.to_list()
@@ -43,10 +43,11 @@ def get_column_pairs(table) -> List[pd.DataFrame]:
 def build_index_part(partitions: pd.DataFrame) -> dict:
     table_id_list = partitions.iloc[:, 0].values.tolist()
     table_id_str = str(table_id_list).replace('[', '(').replace(']', ')')
-    load_df_query = f"select * from allTables where tableID in {table_id_str}"
+    load_df_query = f"select * from allTables where tableID in {table_id_str};"
     global con
+    print('a')
     df = con.execute(load_df_query).fetch_df()
-
+    print('b')
     # grouped = df.sort_values(by=['TableId', 'RowId', 'ColumnId']).set_index(
     #     ['TableId', 'ColumnId', 'RowId']).unstack(-1)
 
@@ -99,10 +100,10 @@ def build_dresden():
 
     print('started fetching part list')
     global con
-    id_df = con.execute("select distinct TableId from AllTables").fetch_df()
+    id_df = con.execute("select distinct TableId from AllTables where TableId < 100000").fetch_df()
     num_tables = id_df.shape[0]
     if num_tables % PARTITION_SIZE == 0:
-        num_partitions = num_tables / PARTITION_SIZE
+        num_partitions = int(num_tables / PARTITION_SIZE)
     else:
         num_partitions = math.floor(num_tables / PARTITION_SIZE) + 1
     partitions = []
