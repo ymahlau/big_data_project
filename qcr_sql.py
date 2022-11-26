@@ -10,6 +10,8 @@ def get_column_pairs(table_name) -> str:
     from ({get_categorical_columns(table_name)}) as categorical
         join ({get_numerical_columns(table_name)}) as numerical
             on categorical.TableID = numerical.TableID
+        join (SELECT TableID FROM {table_name} group by TableID having max(rowid) > 10) as huge_tables
+            on huge_tables.TableID = categorical.TableID
     """
     return query
 
@@ -34,7 +36,7 @@ def get_categorical_columns(table_name) -> str:
     return query
 
 
-def get_sketches(table_name, sketch_size=100):
+def get_sketches(table_name, sketch_size=128):
     full = f"""
     select concat(Categorical.TableId, '__', Categorical.ColumnID, '_', Numerical.ColumnID) as TableID, Categorical.CellValue as Category, avg(CAST(Numerical.CellValue as DOUBLE)) as Value,
         row_number() over (Partition by Categorical.TableId, Categorical.ColumnID, Numerical.ColumnID order by md5_number(Categorical.CellValue)) as RowNumber
