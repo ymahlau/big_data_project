@@ -8,3 +8,21 @@ qcrML.py
 
 /.ipynb_checkpoints/
 /index.pickle
+/src/datadiscoverybench/datadiscoverybench/data/gittables/import/allegro_con_spirito_tables_licensed.parquet
+/src/datadiscoverybench/datadiscoverybench/data/gittables/data/allegro_con_spirito_tables_licensed.zip
+/exported_db/alltables.csv
+/src/datadiscoverybench/datadiscoverybench/data/dresden/db/alltables.parquet
+/src/datadiscoverybench/datadiscoverybench/data/gittables/db/alltables.parquet
+/src/datadiscoverybench/datadiscoverybench/data/dresden/data/dwtc-000.json.gz
+/src/datadiscoverybench/datadiscoverybench/data/dresden/import/dwtc-000.parquet
+/src/datadiscoverybench/datadiscoverybench/data/dresden/data/dwtc-001.json.gz
+/src/datadiscoverybench/datadiscoverybench/data/dresden/import/dwtc-001.parquet
+/exported_db/load.sql
+/src/datadiscoverybench/datadiscoverybench/data/dresden/db/load.sql
+/src/datadiscoverybench/datadiscoverybench/data/gittables/db/load.sql
+/nohup.out
+/src/datadiscoverybench/datadiscoverybench/data/dresden/db/parts.pickle
+/src/datadiscoverybench/datadiscoverybench/data/gittables/db/parts.pickle
+/exported_db/schema.sql
+/src/datadiscoverybench/datadiscoverybench/data/dresden/db/schema.sql
+/src/datadiscoverybench/datadiscoverybench/data/gittables/db/schema.sql
