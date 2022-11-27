@@ -47,13 +47,18 @@ def create_sketch(
         n=100
 ) -> List[Tuple[str, numeric]]:
     """
-    Create sketch
+
+    :param kc: kategorical key
+    :param c: numeric value
+    :param hash_funct: collision free hash function string -> int/float
+    :param n: size of sketch, default 100
+    :return: sketch of size n for given coulumns
     """
+    sketch = heapq.nsmallest(n, zip(kc, c), key=lambda x: hash_funct(x[0]))
+    return sketch
 
-    return heapq.nsmallest(n, zip(kc, c), key=lambda x: hash_funct(x[0]))
 
-
-def generate_term_keys(sketch: List[Tuple[str, numeric]], h: Callable[[str], int] = lambda x: x) \
+def key_labeling(sketch: List[Tuple[str, numeric]], h: Callable[[str], int] = lambda x: x) \
         -> List[Union[int, str]]:
     """
     Generate term keys for sketch
@@ -73,15 +78,15 @@ def add_to_inverted_index(
         inverted_index[term].add(value)
 
 
-def build_index(tables: List[pd.DataFrame]) -> None:
+def build_index(tables: List[pd.DataFrame], n=100) -> None:
     inverted_index = load_index()
 
     for table in tables:
         kc = get_kc(table)
         c = get_c(table)
         h, hu = create_hash_functions()
-        sketch = create_sketch(kc, c, hash_function)
-        terms = generate_term_keys(sketch)# (sketch, h)
+        sketch = create_sketch(kc, c, hash_function, n)
+        terms = key_labeling(sketch)# (sketch, h)
         table_id = get_table_id(table)
         add_to_inverted_index(inverted_index, terms, table_id)
 
@@ -93,8 +98,8 @@ def find_tables(query: pd.DataFrame) -> List[Tuple[Any, int]]:
     c = get_c(query)
     h, hu = create_hash_functions()
     sketch = create_sketch(kc, c, hash_function)
-    terms = generate_term_keys(sketch)# (sketch, h)
-    anti_terms = generate_term_keys(
+    terms = key_labeling(sketch)# (sketch, h)
+    anti_terms = key_labeling(
         list(map((lambda key_value: (key_value[0], -key_value[1])), sketch))) #, h)
     inverted_index = load_index()
     result = Counter()
