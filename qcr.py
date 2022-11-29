@@ -1,4 +1,4 @@
-from typing import Callable, Tuple, List, DefaultDict, Set, Union, Any
+from typing import Callable, Tuple, List, DefaultDict, Set, Union, Any, Dict
 import heapq
 from collections import defaultdict
 import pickle
@@ -17,6 +17,7 @@ from collections import Counter
 def create_hash_functions() -> Tuple[Callable[[str], int], Callable[[int], int]]:
     """
     Create hash functions h and hu
+    :return:
     """
 
     return (
@@ -55,6 +56,7 @@ def create_sketch(
     :return: sketch of size n for given coulumns
     """
     sketch = heapq.nsmallest(n, zip(kc, c), key=lambda x: hash_funct(x[0]))
+
     return sketch
 
 
@@ -84,23 +86,26 @@ def build_index(tables: List[pd.DataFrame], n=100) -> None:
     for table in tables:
         kc = get_kc(table)
         c = get_c(table)
-        h, hu = create_hash_functions()
-        sketch = create_sketch(kc, c, hash_function, n)
-        terms = key_labeling(sketch)# (sketch, h)
+        two_col_tables = cross_product_tables(kc, c)
         table_id = get_table_id(table)
-        add_to_inverted_index(inverted_index, terms, table_id)
+        for tbl in two_col_tables:
+            this_table_id = f"{table_id}_{tbl.columns.name}"
+            sketch = create_sketch(tbl.iloc[:, 0].tolist(), tbl.iloc[:, 1].tolist(), hash_function, n)
+            terms = key_labeling(sketch)  # (sketch, h) # we currently don't use the hash values for the sketch
+            add_to_inverted_index(inverted_index, terms, this_table_id)
 
     save_index(inverted_index)
 
 
 def find_tables(query: pd.DataFrame) -> List[Tuple[Any, int]]:
     kc = get_kc(query)
+    kc = list(kc.values())[0]  # we only work wit 2 col queries
     c = get_c(query)
-    h, hu = create_hash_functions()
+    c = list(c.values())[0]    # therefore we only have one num- and one cat-column
     sketch = create_sketch(kc, c, hash_function)
-    terms = key_labeling(sketch)# (sketch, h)
+    terms = key_labeling(sketch)  # (sketch, h) # we currently don't use the hash values for the sketch
     anti_terms = key_labeling(
-        list(map((lambda key_value: (key_value[0], -key_value[1])), sketch))) #, h)
+        list(map((lambda key_value: (key_value[0], -key_value[1])), sketch)))  # , h)
     inverted_index = load_index()
     result = Counter()
     result.update(
@@ -155,24 +160,47 @@ def load_query() -> pd.DataFrame:
     return pd.read_csv("toy_tables/A_0.csv", sep=";")
 
 
-def get_kc(table: pd.DataFrame) -> List[str]:
+def cross_product_tables(cat_col: DefaultDict[str, List[str]], num_col: DefaultDict[str, List[numeric]]) -> List[pd.DataFrame]:
+    """
+    combines all numerical and categorical colums like a cross-product.
+    eg: c1, c2 x n1, n2, n3 -> ['c1_n1', c1_n2', 'c1_n3','c2_n1', 'c2_n2', c2_n3']
+    :param cat_col: default dict with column name as key and list of categorical-column-values as value.
+    :param num_col: default dict with column name as key and list of numerical-column-values as value.
+    :return: list of named tables.
+    """
+    tables = []
+    for cat_header in cat_col:
+        for num_header in num_col:
+            table = pd.DataFrame(list(zip(cat_col[cat_header], num_col[num_header])), columns =[cat_header, num_header])
+            table.columns.name = f"{cat_header}_{num_header}"   # here be use the column names as name for the new table
+            tables.append(table)
+    return tables
+
+
+def get_kc(table: pd.DataFrame) -> DefaultDict[str, List[str]]:
     """
     returns categorical column of dataframe
     :param table:
     :return:
     """
-    kc_column_name = table.select_dtypes(include=["object"]).columns[0]
-    return table[kc_column_name].values.tolist()
+    kc_column_name = table.select_dtypes(include=["object"]).columns
+    columns = {}
+    for col in kc_column_name:
+        columns[col] = (table[col].values.tolist())
+    return columns
 
 
-def get_c(table: pd.DataFrame) -> List[numeric]:
+def get_c(table: pd.DataFrame) -> DefaultDict[str, List[numeric]]:
     """
     # returns numerical column of dataframe
     :param table:
     :return:
     """
-    c_column_name = table.select_dtypes(include=["float64", "int64"]).columns[0]
-    return table[c_column_name].values.tolist()
+    c_column_name = table.select_dtypes(include=["float64", "int64"]).columns
+    columns = {}
+    for col in c_column_name:
+        columns[col] = (table[col].values.tolist())
+    return columns
 
 
 def get_table_id(table: pd.DataFrame) -> str:
@@ -185,10 +213,22 @@ def get_table_id(table: pd.DataFrame) -> str:
 
 
 if __name__ == "__main__":
-    build_index(load_tables("toy_tables"))
-    print(find_tables(load_query()))
 
-    # Delete index file for debug purposes
+    # sample with table from notebook
+    tbl = pd.read_csv('data/test_table.csv')
+    tbl.columns.name = 'testTable'
+    print(tbl)
+    build_index([tbl], n=3)
+    q = pd.read_csv('data/q.csv')
+    print(find_tables(q))
+
+    # sample with generated toy tables
+    #build_index(load_tables("toy_tables"))
+
+    # queries may only consist of 1 numerical and 1 categorical column.
+    #print(find_tables(load_query()))
+
+    # Delete index file for debugging and testing purposes
     # Usually you would build the index once and then use it
     # for multiple queries
     Path("index.pickle").unlink()
