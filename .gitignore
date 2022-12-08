@@ -1,6 +1,7 @@
 .idea
 src
 data/database
+data/zip_cache
 data/toy_data
 __pycache__
 models
