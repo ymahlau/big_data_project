@@ -4,7 +4,10 @@ import pandas as pd
 from utils.table_mapper import map_parts
 
 
-def count_rows(df):
+def count_rows(df, only_shape=False):
+    # Workaround to ensure correct inference of column types
+    if only_shape:
+        return pd.DataFrame({'count': [0]})
     return pd.DataFrame({'count': [len(df)]})
 
 

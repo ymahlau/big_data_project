@@ -100,8 +100,9 @@ def map_parts(con: duckdb.DuckDBPyConnection,
                 zip_path)
 
     # Create table that all results are inserted to
-    shape_table_df = callback(pd.DataFrame())
-    con.execute(f"CREATE TABLE {result_table_name} AS SELECT * FROM shape_table_df LIMIT 0")
+    shape_table_df = callback(pd.DataFrame(), only_shape=True)
+    con.execute(f"CREATE TABLE {result_table_name} AS SELECT * FROM shape_table_df LIMIT 1")
+    con.execute(f"DELETE FROM {result_table_name}")
 
     # For all parts calculate the results in parallel (parallelization by table file)
     print('Calculating results...')
