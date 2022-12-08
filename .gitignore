@@ -1,7 +1,7 @@
 .idea
 src
 data/database
-toy_tables
+data/toy_data
 __pycache__
 models
 qcrML.py
