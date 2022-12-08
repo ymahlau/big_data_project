@@ -93,4 +93,4 @@ time_slot_tables_licensed
 track-to-track_seek_time_tables_licensed
 usance_tables_licensed
 wartime_tables_licensed
-whole_tables_licensed.zip
+whole_tables_licensed

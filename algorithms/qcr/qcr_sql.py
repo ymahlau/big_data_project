@@ -49,7 +49,7 @@ def get_sketches(table_name, sketch_size=128):
                 and Categorical.ColumnID = Pairs.categorical_column_id
                 and Numerical.ColumnID = Pairs.numerical_column_id
 
-    where isfinite(TRY_CAST(Numerical.CellValue as DOUBLE))
+    where isfinite(TRY_CAST(Numerical.CellValue as DOUBLE)) and abs(TRY_CAST(Numerical.CellValue as DOUBLE)) < 1e+290
 
     group by Categorical.TableId, Categorical.ColumnID, Numerical.ColumnID, Categorical.CellValue
 
