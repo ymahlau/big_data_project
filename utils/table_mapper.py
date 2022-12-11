@@ -22,7 +22,11 @@ ssl._create_default_https_context = ssl._create_unverified_context
 
 process_unique_zipfile = None
 
-def file2result(part: str, callback: Callable[[pd.DataFrame], pd.DataFrame], file_name: str):
+def file2result(
+        part: str,
+        callback: Callable[[pd.DataFrame, bool], pd.DataFrame],
+        file_name: str
+):
     global process_unique_zipfile
     if not Path(file_name).suffix != 'parquet':  # optional filtering by filetype
         return None
@@ -32,7 +36,7 @@ def file2result(part: str, callback: Callable[[pd.DataFrame], pd.DataFrame], fil
         pq_file_like = io.BytesIO(pq_bytes)
         df = pd.read_parquet(pq_file_like, engine="fastparquet")
         df.columns.name = table_name
-        result_table = callback(df)
+        result_table = callback(df, False)
         return result_table
 
     except Exception as e:
@@ -44,7 +48,12 @@ def init_worker(zip_path):
     process_unique_zipfile = ZipFile(zip_path)  # Todo: Check whether this is closed properly
 
 
-def process_zip(con: duckdb.DuckDBPyConnection, result_table_name: str, zip_path: Path, callback: Callable[[pd.DataFrame], pd.DataFrame]):
+def process_zip(
+        con: duckdb.DuckDBPyConnection,
+        result_table_name: str,
+        zip_path: Path,
+        callback: Callable[[pd.DataFrame, bool], pd.DataFrame]
+):
     with ZipFile(zip_path) as zf:
         file_names = zf.namelist()
 
@@ -74,8 +83,9 @@ def map_parts(con: duckdb.DuckDBPyConnection,
               result_table_name: str,
               zip_folder_path: str,
               parts: List[str],
-              callback: Callable[[pd.DataFrame], pd.DataFrame]
+              callback: Callable[[pd.DataFrame, bool], pd.DataFrame]
               ):
+
     """
     :param con: DuckDB connection that the result table will be inserted into
     :param result_table_name: Name of the result table
@@ -100,7 +110,7 @@ def map_parts(con: duckdb.DuckDBPyConnection,
                 zip_path)
 
     # Create table that all results are inserted to
-    shape_table_df = callback(pd.DataFrame(), only_shape=True)
+    shape_table_df = callback(pd.DataFrame(), True)
     con.execute(f"CREATE TABLE {result_table_name} AS SELECT * FROM shape_table_df LIMIT 1")
     con.execute(f"DELETE FROM {result_table_name}")
 

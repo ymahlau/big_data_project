@@ -130,3 +130,8 @@ def fetch_table(con: duckdb.DuckDBPyConnection, table_name: str) -> pd.core.fram
     print(df_tbl)
 
     return df_tbl
+
+def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    df_obj = df.select_dtypes(['object'])
+    df[df_obj.columns] = df_obj.apply(lambda x: x.str.strip().str.lower())
+    return df
