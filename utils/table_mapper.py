@@ -68,6 +68,7 @@ def process_zip(
                 item_cache.append(item)
             if len(item_cache) > limit or last:
                 result_merged_df = pd.concat(item_cache, axis=0)
+                con.register('result_merged_df', result_merged_df)
                 con.execute(f"INSERT INTO {result_table_name} SELECT * FROM result_merged_df")
                 item_cache.clear()
 
@@ -111,6 +112,7 @@ def map_parts(con: duckdb.DuckDBPyConnection,
 
     # Create table that all results are inserted to
     shape_table_df = callback(pd.DataFrame(), True)
+    con.register('shape_table_df', shape_table_df)
     con.execute(f"CREATE TABLE {result_table_name} AS SELECT * FROM shape_table_df LIMIT 1")
     con.execute(f"DELETE FROM {result_table_name}")
 
