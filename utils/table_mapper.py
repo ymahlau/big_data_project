@@ -5,6 +5,7 @@ import time
 from contextlib import ExitStack
 from pathlib import Path
 from typing import List, Callable
+import traceback
 
 import duckdb
 from zipfile import ZipFile
@@ -40,6 +41,7 @@ def file2result(
         return result_table
 
     except Exception as e:
+        print(traceback.format_exc())
         print(f"Error: {part=}, {file_name=} ->", e)
 
 
@@ -66,7 +68,7 @@ def process_zip(
         def cache_and_store(item, last=False, limit=500, item_cache=[]):
             if item is not None:
                 item_cache.append(item)
-            if len(item_cache) > limit or last:
+            if (len(item_cache) > limit or last) and item_cache:
                 result_merged_df = pd.concat(item_cache, axis=0)
                 con.register('result_merged_df', result_merged_df)
                 con.execute(f"INSERT INTO {result_table_name} SELECT * FROM result_merged_df")

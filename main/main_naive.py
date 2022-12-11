@@ -31,7 +31,7 @@ def main():
         #     # 'beats_per_minute_tables_licensed', 'cease_tables_licensed',
         #     'centripetal_acceleration_tables_licensed'
         # ],
-        parts,
+        parts[42:44],
         callback
     )
     # print(con.execute('SELECT * FROM result_table where joinability > 0').fetchdf())
