@@ -8,6 +8,7 @@ dependencies:
   - pip:
     - -e git+https://github.com/LUH-DBS/DataDiscoveryBenchmark.git#egg=datadiscoverybench
     - duckdb==0.5.1
+    - fastparquet
     - autogluon==0.6.0
     - tqdm
     - fastparquet

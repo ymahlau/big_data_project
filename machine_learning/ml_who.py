@@ -4,11 +4,11 @@ from typing import Tuple, List
 import pandas as pd
 from autogluon.tabular import TabularDataset, TabularPredictor
 
-from ml_utils import generate_indices
+from machine_learning.ml_utils import generate_indices
 
 model_path = Path(__file__).parent / 'models'
 model_path.mkdir(exist_ok=True, parents=True)
-who_data_fpath = Path(__file__).parent / 'data' / 'Life_Expectancy_Data.csv'
+who_data_fpath = Path(__file__).parent.parent / 'data' / 'real_data' / 'Life_Expectancy_Data.csv'
 
 def load_who_data() -> pd.DataFrame:
     df_who = pd.read_csv(who_data_fpath, sep=';')
