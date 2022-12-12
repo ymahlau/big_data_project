@@ -66,7 +66,6 @@ def process_zip(con: duckdb.DuckDBPyConnection, result_table_name: str, zip_path
             if result_table_df is None:
                 continue
             cache_and_store(result_table_df)
-
         cache_and_store(None, last=True)
 
 
@@ -101,7 +100,7 @@ def map_parts(con: duckdb.DuckDBPyConnection,
 
     # Create table that all results are inserted to
     shape_table_df = callback(pd.DataFrame(), only_shape=True)
-    con.execute(f"CREATE TABLE {result_table_name} AS SELECT * FROM shape_table_df LIMIT 1")
+    con.execute(f"CREATE OR REPLACE TABLE {result_table_name} AS SELECT * FROM shape_table_df LIMIT 1")
     con.execute(f"DELETE FROM {result_table_name}")
 
     # For all parts calculate the results in parallel (parallelization by table file)

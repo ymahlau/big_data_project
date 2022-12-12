@@ -44,7 +44,6 @@ def create_sketch(
     :return: sketch of size n for given columns
     """
     sketch = heapq.nsmallest(n, zip(kc, c), key=lambda x: hash_funct(x[0]))
-
     return sketch
 
 
@@ -56,9 +55,8 @@ def key_labeling(sketch: List[Tuple[str, numeric]], h: Callable[[str], int] = la
     :param h: hash function if hashed keys shall be labeled, nothing if literal keys shall be labeled
     :return: returns a two col table of labeled keys and values
     """
-
     mue = sum([value for key, value in sketch]) / len(sketch)
-    return [h(f'{h(key)}{"+1" if value > mue else "-1"}') for key, value in sketch]
+    return [h(f'{str(h(key))}{"+1" if value > mue else "-1"}') for key, value in sketch]
 
 
 def add_to_inverted_index(
@@ -127,7 +125,6 @@ def find_tables(query: pd.DataFrame) -> List[Tuple[Any, int]]:
 #############################################
 # Utils                                     #
 #############################################
-
 
 def load_index() -> DefaultDict[int, Set[str]]:
     """
@@ -267,13 +264,13 @@ if __name__ == "__main__":
     tbl = pd.read_csv('../../expert_review/test_table.csv')
     tbl.columns.name = 'testTable'
     print(tbl)
-    build_index([tbl], n=3)
+    build_index([tbl], n=3)#TODO: make param
     q = pd.read_csv('../../expert_review/q.csv')
     print(find_tables(q))
 
     # sample with generated toy tables
-    #build_index(load_tables("toy_data"))
-    #print(find_tables(load_query()))
+    # build_index(load_tables("toy_data"))
+    # print(find_tables(load_query()))
 
     # remove connection to inverted index for next test-run
     Path("index.pickle").unlink()
