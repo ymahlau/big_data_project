@@ -37,7 +37,7 @@ def callback_qcr(df_in: pd.DataFrame, only_shape=False) -> pd.DataFrame:
 
 
 def main():
-    con = duckdb.connect(':memory:')
+    con = duckdb.connect(database="/home/groupb/big_data_project/data/indices/gittables_qrc.db")
     with open('/home/groupb/big_data_project/data/gittable_parts.txt') as f:
         parts = f.read().split('\n')
         parts.remove('')
