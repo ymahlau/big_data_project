@@ -38,11 +38,10 @@ def callback_qcr(df_in: pd.DataFrame, only_shape=False) -> pd.DataFrame:
 
 def main():
     con = duckdb.connect(':memory:')
-    map_parts(con, 'result_table', '../data/zip_cache/', [  'abstraction_tables_licensed',
-        'allegro_con_spirito_tables_licensed',
-        'beats_per_minute_tables_licensed', 'cease_tables_licensed',
-        'centripetal_acceleration_tables_licensed'
-    ], callback_qcr)
+    with open('/home/groupb/big_data_project/data/gittable_parts.txt') as f:
+        parts = f.read().split('\n')
+        parts.remove('')
+    map_parts(con, 'result_table', '../data/zip_cache/', parts, callback_qcr)
     print(con.execute('SELECT * FROM result_table').fetchdf())
     print(con.execute('select term_id, count(*) as count from result_table group by term_id order by term_id').fetchdf())
 
