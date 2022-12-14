@@ -2,6 +2,7 @@ import duckdb
 import pandas as pd
 from timeit import timeit
 
+
 from algorithms.qcr.qcr import get_kc, get_c, create_sketch, hash_function, key_labeling, cross_product_tables
 from utils.table_mapper import map_parts
 
