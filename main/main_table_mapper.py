@@ -42,7 +42,7 @@ def main():
     with open('/home/groupb/big_data_project/data/gittable_parts.txt') as f:
         parts = f.read().split('\n')
         parts.remove('')
-    map_parts(con, 'result_table', '../data/zip_cache/', parts, callback_qcr)
+    map_parts(con, 'result_table', '/home/groupb/big_data_project/data/zip_cache', parts, callback_qcr)
     print(con.execute('SELECT * FROM result_table').fetchdf())
     print(con.execute('select term_id, count(*) as count from result_table group by term_id order by term_id').fetchdf())
 
