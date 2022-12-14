@@ -1,8 +1,5 @@
 .idea
-indices
 src
-src/datadiscoverybench/data/gittables/data/*
-
 data/database
 data/zip_cache
 data/toy_data
