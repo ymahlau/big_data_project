@@ -54,11 +54,12 @@ def process_zip(con: duckdb.DuckDBPyConnection, result_table_name: str, zip_path
             initargs=(zip_path, )
     ) as pool:
 
-        def cache_and_store(item, last=False, limit=500, item_cache=[]):
+        def cache_and_store(item, last=False, limit=100, item_cache=[]):
             if item is not None:
                 item_cache.append(item)
-            if len(item_cache) > limit or last:
+            if (len(item_cache) > limit or last) and item_cache:
                 result_merged_df = pd.concat(item_cache, axis=0)
+                con.register('result_merged_df', result_merged_df)
                 con.execute(f"INSERT INTO {result_table_name} SELECT * FROM result_merged_df")
                 item_cache.clear()
 
@@ -100,6 +101,7 @@ def map_parts(con: duckdb.DuckDBPyConnection,
 
     # Create table that all results are inserted to
     shape_table_df = callback(pd.DataFrame(), only_shape=True)
+    con.register('shape_table_df', shape_table_df)
     con.execute(f"CREATE OR REPLACE TABLE {result_table_name} AS SELECT * FROM shape_table_df LIMIT 1")
     con.execute(f"DELETE FROM {result_table_name}")
 

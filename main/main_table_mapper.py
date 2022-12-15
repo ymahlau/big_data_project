@@ -19,14 +19,12 @@ def callback_qcr(df_in: pd.DataFrame, only_shape=False) -> pd.DataFrame:
                               columns=['term_id', 'table_id_catcol_numcol'])
         return df_out  # Emtpy Dataframe and continuosly appending unadvised
     else:
-        # df_out = pd.DataFrame(columns=['termid', 'table_id_catcol_numcol'])
-        c_col = get_kc(df_in)
         c_col = get_kc(df_in)
         n_col = get_c(df_in)
         cross_product_tables_list = cross_product_tables(c_col, n_col, df_in.columns.name)
         list1, list2 = [], []
         for i in cross_product_tables_list:
-            sketch = create_sketch(i.iloc[:, 0], i.iloc[:, 1], hash_function)
+            sketch = create_sketch(i.iloc[:, 0], i.iloc[:, 1], hash_function, n=128)
             labels = key_labeling(sketch)
             for term in labels:
                 #list1.append(hash_function(term))
@@ -48,4 +46,4 @@ def main():
 
 
 if __name__ == "__main__":
-    print(timeit(main, number=1))
+    main()
