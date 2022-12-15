@@ -25,7 +25,7 @@ def callback_qcr(df_in: pd.DataFrame, only_shape=False) -> pd.DataFrame:
         list1, list2 = [], []
         for i in cross_product_tables_list:
             sketch = create_sketch(i.iloc[:, 0], i.iloc[:, 1], hash_function, n=128)
-            labels = key_labeling(sketch)
+            labels = key_labeling(sketch, hash_function)
             for term in labels:
                 #list1.append(hash_function(term))
                 list1.append(term)
@@ -37,12 +37,13 @@ def callback_qcr(df_in: pd.DataFrame, only_shape=False) -> pd.DataFrame:
 
 def main():
     con = duckdb.connect(database="/home/groupb/big_data_project/data/indices/gittables_qrc.db")
-    with open('/home/groupb/big_data_project/data/gittable_parts.txt') as f:
+    #con = duckdb.connect(':memory:')
+    with open('data/gittable_parts.txt') as f:
         parts = f.read().split('\n')
         parts.remove('')
-    map_parts(con, 'result_table', '/home/groupb/big_data_project/data/zip_cache', parts, callback_qcr)
-    print(con.execute('SELECT * FROM result_table').fetchdf())
-    print(con.execute('select term_id, count(*) as count from result_table group by term_id order by term_id').fetchdf())
+    map_parts(con, 'result_table', 'data/', parts[:40], callback=callback_qcr)
+    print(con.execute('SELECT table_id_catcol_numcol FROM result_table limit 10').fetchdf())
+    print(con.execute('select term_id, count(*) as count from result_table group by term_id order by count desc limit 10').fetchdf())
 
 
 if __name__ == "__main__":

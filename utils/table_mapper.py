@@ -44,7 +44,7 @@ def init_worker(zip_path):
     process_unique_zipfile = ZipFile(zip_path)  # Todo: Check whether this is closed properly
 
 
-def process_zip(con: duckdb.DuckDBPyConnection, result_table_name: str, zip_path: Path, callback: Callable[[pd.DataFrame], pd.DataFrame]):
+def process_zip(con: duckdb.DuckDBPyConnection, result_table_name: str, zip_path: Path, callback: Callable[[pd.DataFrame], pd.DataFrame], limit_top):
     with ZipFile(zip_path) as zf:
         file_names = zf.namelist()
 
@@ -54,7 +54,7 @@ def process_zip(con: duckdb.DuckDBPyConnection, result_table_name: str, zip_path
             initargs=(zip_path, )
     ) as pool:
 
-        def cache_and_store(item, last=False, limit=100, item_cache=[]):
+        def cache_and_store(item,  limit, last=False, item_cache=[]):
             if item is not None:
                 item_cache.append(item)
             if (len(item_cache) > limit or last) and item_cache:
@@ -66,21 +66,23 @@ def process_zip(con: duckdb.DuckDBPyConnection, result_table_name: str, zip_path
         for result_table_df in tqdm(pool.map(partial(file2result, str(zip_path.stem), callback), file_names), total=len(file_names), leave=False):
             if result_table_df is None:
                 continue
-            cache_and_store(result_table_df)
-        cache_and_store(None, last=True)
+            cache_and_store(result_table_df, limit=limit_top)
+        cache_and_store(None, limit=limit_top, last=True)
 
 
 def map_parts(con: duckdb.DuckDBPyConnection,
               result_table_name: str,
               zip_folder_path: str,
               parts: List[str],
-              callback: Callable[[pd.DataFrame], pd.DataFrame]
+              callback: Callable[[pd.DataFrame], pd.DataFrame],
+              count_and_store_limit: int = 500,
               ):
     """
     :param con: DuckDB connection that the result table will be inserted into
     :param result_table_name: Name of the result table
     :param zip_folder_path: Path to the folder containing the cached zip files
     :param parts: List of parts to be loaded
+    :param count_and_store_limit: Limit for the count_and_store item_cache size, initially at 500
     :param callback: Callback function that takes a DataFrame and returns a DataFrame
     """
 
@@ -108,4 +110,4 @@ def map_parts(con: duckdb.DuckDBPyConnection,
     # For all parts calculate the results in parallel (parallelization by table file)
     print('Calculating results...')
     for zip_path in tqdm(zip_paths):
-        process_zip(con, result_table_name, zip_path, callback)
+        process_zip(con, result_table_name, zip_path, callback, count_and_store_limit)
