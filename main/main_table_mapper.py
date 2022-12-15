@@ -41,7 +41,7 @@ def main():
     with open('data/gittable_parts.txt') as f:
         parts = f.read().split('\n')
         parts.remove('')
-    map_parts(con, 'result_table', 'data/', parts[:40], callback=callback_qcr)
+    map_parts(con, 'result_table', '/home/groupb/big_data_project/data/zip_cache', parts[:40], callback=callback_qcr)
     print(con.execute('SELECT table_id_catcol_numcol FROM result_table limit 10').fetchdf())
     print(con.execute('select term_id, count(*) as count from result_table group by term_id order by count desc limit 10').fetchdf())
 
