@@ -23,13 +23,7 @@ def main():
         con,
         'result_table',
         DresdenChunk,
-        # [
-        #     # 'abstraction_tables_licensed',
-        #     # 'allegro_con_spirito_tables_licensed',
-        #     # 'beats_per_minute_tables_licensed', 'cease_tables_licensed',
-        #     'centripetal_acceleration_tables_licensed'
-        # ],
-        DresdenChunk,
+        DresdenChunk.get_chunk_labels()[:1],
         callback
     )
     # print(con.execute('SELECT * FROM result_table where joinability > 0').fetchdf())
