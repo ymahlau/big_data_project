@@ -8,11 +8,11 @@ from algorithms.qcr.qcr import get_kc, get_c, create_sketch, hash_function, key_
 from utils.table_mapper import map_chunks
 
 
-def count_rows(df, only_shape=False):
+def table_statistics(df, only_shape=False):
     # Workaround to ensure correct inference of column types
     if only_shape:
-        return pd.DataFrame({'count': [0]})
-    return pd.DataFrame({'count': [len(df)]})
+        return pd.DataFrame({"name": ["name"],'rows': [0], 'columns': [0]})
+    return pd.DataFrame({"name": df.columns.name,'rows': [len(df)], 'columns': [len(df.columns)]})
 
 
 def callback_qcr(df_in: pd.DataFrame, only_shape=False) -> pd.DataFrame:
@@ -39,8 +39,10 @@ def callback_qcr(df_in: pd.DataFrame, only_shape=False) -> pd.DataFrame:
 
 def main():
     con = duckdb.connect(database=":memory:")
-    map_chunks(con, 'result_table', DresdenChunk, DresdenChunk.get_chunk_labels()[:1], callback=count_rows)
-    print(con.execute('SELECT * FROM result_table').fetchdf())
+    map_chunks(con, 'result_table', DresdenChunk, DresdenChunk.get_chunk_labels()[:1], callback=table_statistics)
+    print(con.execute('SELECT * FROM result_table').df())
+    print(con.execute('SELECT * FROM result_table order by rows desc limit 5').df())
+    print(con.execute('SELECT * FROM result_table order by columns desc limit 5').df())
 
 
 if __name__ == "__main__":

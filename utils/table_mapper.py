@@ -6,7 +6,6 @@ import duckdb
 from zipfile import ZipFile
 import pandas as pd
 import multiprocessing
-import concurrent.futures
 from functools import partial
 from tqdm import tqdm
 from utils.chunk import Chunk
@@ -26,12 +25,12 @@ def init_worker(chunk_cls: Type[Chunk], chunk_label: any) -> None:
     process_unique_chunk = chunk_cls(chunk_label)  # Todo: Check whether this is closed properly
 
 
-def process_chunk(con: duckdb.DuckDBPyConnection, result_table_name: str, chunk_cls: Type[Chunk], chunk_label: any, callback: Callable[[pd.DataFrame], pd.DataFrame], limit_top):
+def process_chunk(con: duckdb.DuckDBPyConnection, result_table_name: str, chunk_cls: Type[Chunk], chunk_label: any, callback: Callable[[pd.DataFrame], pd.DataFrame], cache_and_store_limit: int):
     with chunk_cls(chunk_label) as chunk:
         parts = chunk.get_part_labels()
 
-    with concurrent.futures.ProcessPoolExecutor(
-            max_workers=multiprocessing.cpu_count(),
+    with multiprocessing.Pool(
+            processes=multiprocessing.cpu_count(),
             initializer=init_worker,
             initargs=(chunk_cls, chunk_label, )
     ) as pool:
@@ -45,11 +44,11 @@ def process_chunk(con: duckdb.DuckDBPyConnection, result_table_name: str, chunk_
                 con.execute(f"INSERT INTO {result_table_name} SELECT * FROM result_merged_df")
                 item_cache.clear()
 
-        for result_table_df in tqdm(pool.map(partial(chunk2result, callback), parts, chunksize=16), total=len(parts), leave=False):
+        for result_table_df in tqdm(pool.imap_unordered(partial(chunk2result, callback), parts, chunksize=16), total=len(parts), leave=False):
             if result_table_df is None:
                 continue
-            cache_and_store(result_table_df, limit=limit_top)
-        cache_and_store(None, limit=limit_top, last=True)
+            cache_and_store(result_table_df, limit=cache_and_store_limit)
+        cache_and_store(None, limit=cache_and_store_limit, last=True)
 
 
 def map_chunks(con: duckdb.DuckDBPyConnection,
@@ -57,7 +56,7 @@ def map_chunks(con: duckdb.DuckDBPyConnection,
               chunk_cls: Type[Chunk],
               chunks: List[any],
               callback: Callable[[pd.DataFrame], pd.DataFrame],
-              count_and_store_limit: int = 500,
+              cache_and_store_limit: int = 500,
               ):
     """
     :param con: DuckDB connection that the result table will be inserted into
@@ -65,7 +64,7 @@ def map_chunks(con: duckdb.DuckDBPyConnection,
     :param chunk_cls: Chunk class that is used to load the data
     :param chunks: List of chunks to be loaded
     :param parts: List of parts to be loaded
-    :param count_and_store_limit: Limit for the count_and_store item_cache size, initially at 500
+    :param cache_and_store_limit: Limit for the cache_and_store item cache size
     :param callback: Callback function that takes a DataFrame and returns a DataFrame
     """
 
@@ -78,4 +77,4 @@ def map_chunks(con: duckdb.DuckDBPyConnection,
     # For all chunks calculate the results in parallel (parallelization by table file)
     print('Calculating results...')
     for chunk_label in tqdm(chunks):
-        process_chunk(con, result_table_name, chunk_cls, chunk_label, callback, count_and_store_limit)
+        process_chunk(con, result_table_name, chunk_cls, chunk_label, callback, cache_and_store_limit)

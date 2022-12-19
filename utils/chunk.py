@@ -114,7 +114,7 @@ class DresdenChunk(Chunk):
         relation = json.loads(self.lines[part_label])["relation"]
         df = pd.DataFrame(relation)
         df.columns.name = f"dwtc-{self.chunk_label:03}_{part_label}"
-        return df
+        return df.T
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
