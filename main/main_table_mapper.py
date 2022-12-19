@@ -2,7 +2,7 @@ import duckdb
 import pandas as pd
 from pathlib import Path
 
-from utils.chunk import GitChunk
+from utils.chunk import GitChunk, DresdenChunk
 
 from algorithms.qcr.qcr import get_kc, get_c, create_sketch, hash_function, key_labeling, cross_product_tables
 from utils.table_mapper import map_chunks
@@ -39,7 +39,7 @@ def callback_qcr(df_in: pd.DataFrame, only_shape=False) -> pd.DataFrame:
 
 def main():
     con = duckdb.connect(database=":memory:")
-    map_chunks(con, 'result_table', GitChunk, GitChunk.get_chunk_labels()[:1], callback=count_rows)
+    map_chunks(con, 'result_table', DresdenChunk, DresdenChunk.get_chunk_labels()[:1], callback=count_rows)
     print(con.execute('SELECT * FROM result_table').fetchdf())
 
 

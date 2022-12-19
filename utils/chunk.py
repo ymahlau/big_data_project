@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 import pandas as pd
 from zipfile import ZipFile
 import io
+import json
+import gzip
 from pathlib import Path
 import urllib.request
 from tempfile import TemporaryDirectory
@@ -87,7 +89,39 @@ class GitChunk(Chunk):
         return [chunk_label for chunk_label in (Path(__file__).parent.parent / "data/gittable_parts.txt").read_text().split('\n') if chunk_label != '']
 
 class DresdenChunk(Chunk):
-    pass
+    def __init__(self, chunk_label: str, cache_dir: Optional[Path]=Path(__file__).parent.parent/"data/zip_cache"):
+        self.cache_dir = cache_dir
+        self.temp_dir = None
+        super().__init__(chunk_label)
+
+    def init_chunk(self) -> None:
+        if self.cache_dir is None:
+            self.temp_dir = TemporaryDirectory()
+            self.cache_dir = Path(self.temp_dir.name)
+        else:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+        gzip_path = (self.cache_dir / f"dwtc-{self.chunk_label:03}").with_suffix(".json.gz")
+        if not gzip_path.exists():
+            urllib.request.urlretrieve(f"http://wwwdb.inf.tu-dresden.de/misc/dwtc/data_feb15/dwtc-{self.chunk_label:03}.json.gz",
+                                       gzip_path)
+        self.lines = gzip.open(gzip_path, "rt", encoding="utf-8").readlines()
+
+    def get_part_labels(self) -> Iterable[int]:
+        return range(len(self.lines))
+    
+    def get_part(self, part_label: int) -> pd.DataFrame:
+        relation = json.loads(self.lines[part_label])["relation"]
+        df = pd.DataFrame(relation)
+        df.columns.name = f"dwtc-{self.chunk_label:03}_{part_label}"
+        return df
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+    
+    @classmethod
+    def get_chunk_labels(cls) -> Iterable[int]:
+        return range(500)
 
 class DuckDBChunk(Chunk):
     pass
