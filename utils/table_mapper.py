@@ -11,10 +11,6 @@ from functools import partial
 from tqdm import tqdm
 from utils.chunk import Chunk
 
-import urllib.request
-import ssl
-ssl._create_default_https_context = ssl._create_unverified_context
-
 process_unique_zipfile = None
 
 def chunk2result(callback: Callable[[pd.DataFrame], pd.DataFrame], part: any) -> pd.DataFrame:
