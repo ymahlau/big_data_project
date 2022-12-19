@@ -49,7 +49,7 @@ def process_chunk(con: duckdb.DuckDBPyConnection, result_table_name: str, chunk_
                 con.execute(f"INSERT INTO {result_table_name} SELECT * FROM result_merged_df")
                 item_cache.clear()
 
-        for result_table_df in tqdm(pool.map(partial(chunk2result, callback), parts), total=len(parts), leave=False):
+        for result_table_df in tqdm(pool.map(partial(chunk2result, callback), parts, chunksize=16), total=len(parts), leave=False):
             if result_table_df is None:
                 continue
             cache_and_store(result_table_df, limit=limit_top)
