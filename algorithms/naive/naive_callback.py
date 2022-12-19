@@ -42,8 +42,8 @@ class NaiveCallback:
 
             joined = self.query.add_suffix("_q").merge(
                 table_grouped.add_suffix("_t"),
-                left_on=query_col_name + "_q",
-                right_on=cat_column + "_t",
+                left_on=str(query_col_name) + "_q",
+                right_on=str(cat_column) + "_t",
                 how="inner",
             )
 
