@@ -5,7 +5,7 @@ import pandas as pd
 
 from algorithms.naive.naive_callback import NaiveCallback
 from machine_learning.ml_who import load_who_query
-from utils.table_mapper import map_parts
+from utils.table_mapper import map_chunks
 
 
 def main():
@@ -21,7 +21,7 @@ def main():
         parts = f.read().split('\n')
         parts.remove('')
 
-    map_parts(
+    map_chunks(
         con,
         'result_table',
         '/home/groupb/big_data_project/data/zip_cache',

@@ -1,9 +1,11 @@
 import duckdb
 import pandas as pd
-from timeit import timeit
+from pathlib import Path
+
+from utils.chunk import GitChunk
 
 from algorithms.qcr.qcr import get_kc, get_c, create_sketch, hash_function, key_labeling, cross_product_tables
-from utils.table_mapper import map_parts
+from utils.table_mapper import map_chunks
 
 
 def count_rows(df, only_shape=False):
@@ -36,14 +38,9 @@ def callback_qcr(df_in: pd.DataFrame, only_shape=False) -> pd.DataFrame:
 
 
 def main():
-    con = duckdb.connect(database="/home/groupb/big_data_project/data/indices/gittables_qrc.db")
-    #con = duckdb.connect(':memory:')
-    with open('data/gittable_parts.txt') as f:
-        parts = f.read().split('\n')
-        parts.remove('')
-    map_parts(con, 'result_table', '/home/groupb/big_data_project/data/zip_cache', parts[:40], callback=callback_qcr)
-    print(con.execute('SELECT table_id_catcol_numcol FROM result_table limit 10').fetchdf())
-    print(con.execute('select term_id, count(*) as count from result_table group by term_id order by count desc limit 10').fetchdf())
+    con = duckdb.connect(database=":memory:")
+    map_chunks(con, 'result_table', GitChunk, GitChunk.get_chunk_labels()[:1], callback=count_rows)
+    print(con.execute('SELECT * FROM result_table').fetchdf())
 
 
 if __name__ == "__main__":
