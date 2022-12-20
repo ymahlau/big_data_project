@@ -26,7 +26,7 @@ def main():
         DresdenChunk.get_chunk_labels()[:1],
         callback
     )
-    # print(con.execute('SELECT * FROM result_table where joinability > 0').fetchdf())
+    # print(con.execute('SELECT * FROM result_table order by abs(joinability * correlation) desc limit 100').fetchdf())
 
 
 if __name__ == '__main__':

@@ -1,9 +1,6 @@
-import io
-from pathlib import Path
 from typing import List, Callable, Type
 
 import duckdb
-from zipfile import ZipFile
 import pandas as pd
 import multiprocessing
 from functools import partial
@@ -16,7 +13,11 @@ def chunk2result(callback: Callable[[pd.DataFrame], pd.DataFrame], part: any) ->
     global process_unique_chunk
     df = process_unique_chunk.get_part(part)
     if df is not None:
-        return callback(df)
+        try:
+            return callback(df)
+        except Exception as e:
+            print(e)
+            return None
     return None
 
 
