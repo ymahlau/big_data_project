@@ -35,10 +35,11 @@ if __name__ == '__main__':
     save_dst = model_path / 'song_medium'
     time_limit = 1200
     retrain = True
+    seed = 0
 
     if retrain:
         predictor = TabularPredictor(label=label, path=save_dst, problem_type='regression')
-        predictor.fit(train_data=train_split, time_limit=time_limit)
+        predictor.fit(train_data=train_split, time_limit=time_limit, random_state=seed)
     else:
         predictor = TabularPredictor.load(str(save_dst))
 

@@ -9,6 +9,8 @@ dependencies:
     - -e git+https://github.com/LUH-DBS/DataDiscoveryBenchmark.git#egg=datadiscoverybench
     - duckdb==0.5.1
     - fastparquet
-    - autogluon==0.6.0
+    - autogluon>=0.6.1
     - tqdm
+    - interpret
     - fastparquet
+    - kaleido

@@ -6,6 +6,8 @@ data/toy_data
 __pycache__
 models
 qcrML.py
+splits
+images
 
 /.ipynb_checkpoints/
 /index.pickle
