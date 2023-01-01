@@ -62,7 +62,7 @@ class NaiveCallback:
                     corr = stats.pearsonr(joined_no_nan[query_col], joined_no_nan[table_col])[0]
                 percentual_joinability = joinability / len(self.query)
                 result.loc[len(result)] = [
-                    f"{cat_column}_|_{table_col}_|_{table.columns.name}",
+                    f"{table.columns.name}_|_{cat_column}_|_{table_col}",
                     percentual_joinability,
                     corr
                 ]

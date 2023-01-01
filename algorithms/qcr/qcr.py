@@ -43,7 +43,8 @@ def create_sketch(
     :param n: size of sketch, default 100
     :return: sketch of size n for given columns
     """
-    sketch = heapq.nsmallest(n, zip(kc, c), key=lambda x: hash_funct(x[0]))
+    grouped = pd.DataFrame({'kc': kc, 'c': c}).groupby('kc').mean(numeric_only=True).reset_index()
+    sketch = heapq.nsmallest(n, zip(grouped["kc"], grouped["c"]), key=lambda x: hash_funct(x[0]))
     return sketch
 
 

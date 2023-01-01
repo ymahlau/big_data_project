@@ -28,18 +28,15 @@ def callback_qcr(df_in: pd.DataFrame, only_shape=False) -> pd.DataFrame:
         for i in cross_product_tables_list:
             sketch = create_sketch(i.iloc[:, 0], i.iloc[:, 1], hash_function, n=128)
             labels = key_labeling(sketch, hash_function)
-            for term in labels:
-                #list1.append(hash_function(term))
-                list1.append(term)
-                list2.append(i.columns.name)
-                # df_out.append({'termid': term, 'table_id_catcol_numcol': i.columns.name})
+            list1.extend(labels)
+            list2.extend([i.columns.name] * len(labels))
         df_out = pd.DataFrame(zip(list1, list2), columns=['term_id', 'table_id_catcol_numcol'])
         return df_out
 
 
 def main():
     con = duckdb.connect(database=":memory:")
-    map_chunks(con, 'result_table', DresdenChunk, DresdenChunk.get_chunk_labels()[:1], callback=table_statistics)
+    map_chunks(con, 'result_table', DresdenChunk, DresdenChunk.get_chunk_labels(), callback=table_statistics)
     print(con.execute('SELECT * FROM result_table').df())
     print(con.execute('SELECT * FROM result_table order by rows desc limit 5').df())
     print(con.execute('SELECT * FROM result_table order by columns desc limit 5').df())

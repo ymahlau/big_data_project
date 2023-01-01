@@ -113,9 +113,11 @@ class DresdenChunk(Chunk):
     def get_part(self, part_label: int) -> pd.DataFrame:
         relation = json.loads(self.lines[part_label])["relation"]
         df = pd.DataFrame(relation)
+        n_rows, n_columns = df.shape
+        if n_columns > n_rows:
+            df = df.T
         if df[0].is_unique:
             df = df.set_index(0)
-        df = df.T
         for column in df.columns:
             df[column] = pd.to_numeric(df[column], errors="coerce").fillna(df[column])
         df.columns.name = f"dwtc-{self.chunk_label:03}_{part_label}"
