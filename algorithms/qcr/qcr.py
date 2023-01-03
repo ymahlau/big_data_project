@@ -22,8 +22,18 @@ def hash_function(obj: str) -> float:
     :return: hashed value
     """
     return int.from_bytes(
-        hashlib.md5(str(obj).encode("utf-8")).digest(), "little", signed=True
-    ) / 2 ** 256
+        hashlib.md5(str(obj).encode("utf-8")).digest(), "big", signed=False
+    ) / 2 ** 128
+
+def hash_md5(obj: str) -> int:
+    """
+    Hashes a string to an integer value
+    :param obj: String that needs to be hashed
+    :return: hashed value
+    """
+    return int.from_bytes(
+        hashlib.md5(str(obj).encode("utf-8")).digest(), "big", signed=False
+    )
 
 
 def create_sketch(
@@ -48,7 +58,7 @@ def create_sketch(
     return sketch
 
 
-def key_labeling(sketch: List[Tuple[str, numeric]], h: Callable[[str], int] = lambda x: x) \
+def key_labeling(sketch: List[Tuple[str, numeric]], h: Callable[[str], int] = lambda x: int.from_bytes(str(x).encode("utf-8"), "big", signed=False), inner_hash: bool = False) \
         -> List[Union[int, str]]:
     """
     labels keys according to their values' distribution. +key or -key
@@ -57,7 +67,7 @@ def key_labeling(sketch: List[Tuple[str, numeric]], h: Callable[[str], int] = la
     :return: returns a two col table of labeled keys and values
     """
     mue = sum([value for key, value in sketch]) / len(sketch)
-    return [h(f'{str(h(key))}{"+1" if value > mue else "-1"}') for key, value in sketch]
+    return [format(h(f'{f"{h(key):x}" if inner_hash else key}{"+1" if value > mue else "-1"}'), "x") for key, value in sketch]
 
 
 def add_to_inverted_index(

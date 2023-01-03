@@ -4,7 +4,7 @@ from pathlib import Path
 
 from utils.chunk import GitChunk, DresdenChunk
 
-from algorithms.qcr.qcr import get_kc, get_c, create_sketch, hash_function, key_labeling, cross_product_tables
+from algorithms.qcr.qcr import get_kc, get_c, create_sketch, hash_md5, key_labeling, cross_product_tables
 from utils.table_mapper import map_chunks
 
 
@@ -26,8 +26,8 @@ def callback_qcr(df_in: pd.DataFrame, only_shape=False) -> pd.DataFrame:
         cross_product_tables_list = cross_product_tables(c_col, n_col, df_in.columns.name)
         list1, list2 = [], []
         for i in cross_product_tables_list:
-            sketch = create_sketch(i.iloc[:, 0], i.iloc[:, 1], hash_function, n=128)
-            labels = key_labeling(sketch, hash_function)
+            sketch = create_sketch(i.iloc[:, 0], i.iloc[:, 1], hash_md5, n=128)
+            labels = key_labeling(sketch, hash_md5, inner_hash=False)
             list1.extend(labels)
             list2.extend([i.columns.name] * len(labels))
         df_out = pd.DataFrame(zip(list1, list2), columns=['term_id', 'table_id_catcol_numcol'])
@@ -36,10 +36,10 @@ def callback_qcr(df_in: pd.DataFrame, only_shape=False) -> pd.DataFrame:
 
 def main():
     con = duckdb.connect(database=":memory:")
-    map_chunks(con, 'result_table', DresdenChunk, DresdenChunk.get_chunk_labels(), callback=table_statistics)
-    print(con.execute('SELECT * FROM result_table').df())
-    print(con.execute('SELECT * FROM result_table order by rows desc limit 5').df())
-    print(con.execute('SELECT * FROM result_table order by columns desc limit 5').df())
+    map_chunks(con, 'result_table', GitChunk, GitChunk.get_chunk_labels()[0:1], callback=callback_qcr)
+    print(con.execute('SELECT * FROM result_table order by term_id limit 5').df())
+    #print(con.execute('SELECT * FROM result_table order by rows desc limit 5').df())
+    #print(con.execute('SELECT * FROM result_table order by columns desc limit 5').df())
 
 
 if __name__ == "__main__":
