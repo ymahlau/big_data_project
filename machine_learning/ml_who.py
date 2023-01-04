@@ -17,8 +17,14 @@ LABEL_WHO = 'Life expectancy '
 
 def load_who_data() -> pd.DataFrame:
     df_who = pd.read_csv(who_data_fpath, sep=';')
-    df_who = df_who[df_who.iloc[:, 3].notna()]  # target cannot be NaN
+    df_who = df_who[df_who[LABEL_WHO].notna()]  # target cannot be NaN
     return df_who
+
+def load_who_grouped() ->pd.DataFrame:
+    df_who = pd.read_csv(who_data_fpath, sep=';')
+    df_who_grouped = df_who.groupby(QUERY_WHO).mean(numeric_only=False).reset_index()
+    df_who_grouped = df_who_grouped[df_who_grouped[LABEL_WHO].notna()]
+    return df_who_grouped
 
 def save_who_split():
     # save who splits
@@ -34,23 +40,34 @@ def load_who_query() -> pd.DataFrame:
 
 if __name__ == '__main__':
     time_limit = 1200  # units are seconds
-    retrain = False
+    retrain = True
     counter = 0
-    save_dst = model_path / f'who_medium_{counter}'
+    save_dst = model_path / f'who_grouped_best_{counter}'
     query = load_who_query()
     presets = 'best_quality'
+
+    # who_data = load_who_data()
+    # idx_train, idx_test = generate_indices(len(who_data))
+    # data_train, data_test = compute_splits(who_data, idx_train, idx_test)
+    # save_split('who', data_train, data_test, LABEL_WHO, QUERY_WHO)
+    # train_data, test_data, _, _ = load_split('who')
+
+    # who_grouped = load_who_grouped()
+    # idx_train, idx_test = generate_indices(len(who_grouped))
+    # data_train, data_test = compute_splits(who_grouped, idx_train, idx_test)
+    # save_split('who_grouped', data_train, data_test, LABEL_WHO, QUERY_WHO)
+    # train_data, test_data, _, _ = load_split('who_grouped')
+
     best_who_query = pd.read_csv(who_data_best_fpath, sep=';')
+    # train_data, test_data, _, _ = load_split('who')
+    train_data, test_data, _, _ = load_split('who_grouped')
+    train_data = merge_tables(train_data, best_who_query, 0, 0, 5)
+    test_data = merge_tables(test_data, best_who_query, 0, 0, 5)
 
-    train_data, test_data, _, _ = load_split('who')
-    train_data_new = merge_tables(train_data, best_who_query, 0, 0, 5)
-    test_data_new = merge_tables(test_data, best_who_query, 0, 0, 5)
-
-    train_data_new, test_data_new = remove_query(train_data_new, test_data_new, QUERY_WHO)
     train_data, test_data = remove_query(train_data, test_data, QUERY_WHO)
-
     if retrain:
         predictor = TabularPredictor(label=LABEL_WHO, path=save_dst, problem_type='regression')
-        predictor.fit(train_data=train_data_new, time_limit=time_limit, presets=presets)
+        predictor.fit(train_data=train_data, time_limit=time_limit, presets=presets)
     else:
         predictor = TabularPredictor.load(str(save_dst))
 
