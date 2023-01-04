@@ -11,8 +11,8 @@ from utils.table_mapper import map_chunks
 def table_statistics(df, only_shape=False):
     # Workaround to ensure correct inference of column types
     if only_shape:
-        return pd.DataFrame({"name": ["name"],'rows': [0], 'columns': [0]})
-    return pd.DataFrame({"name": df.columns.name,'rows': [len(df)], 'columns': [len(df.columns)]})
+        return pd.DataFrame({"name": ["name"], 'rows': [0], 'columns': [0]})
+    return pd.DataFrame({"name": df.columns.name, 'rows': [len(df)], 'columns': [len(df.columns)]})
 
 
 def callback_qcr(df_in: pd.DataFrame, only_shape=False) -> pd.DataFrame:
@@ -36,8 +36,9 @@ def callback_qcr(df_in: pd.DataFrame, only_shape=False) -> pd.DataFrame:
 
 def main():
     con = duckdb.connect(database=":memory:")
-    map_chunks(con, 'result_table', GitChunk, GitChunk.get_chunk_labels()[0:1], callback=callback_qcr)
-    print(con.execute('SELECT * FROM result_table order by term_id limit 5').df())
+    map_chunks(con, 'result_table', GitChunk, GitChunk.get_chunk_labels(), callback=callback_qcr)
+    #print(con.execute("SELECT distinct table_id_catcol_numcol, count(distinct term_id), avg(CAST(CONCAT('0x', SUBSTRING(term_id, 0, 8)) as INTEGER)) as avgg FROM Result_Table where table_id_catcol_numcol like 'allegro_con_spirito_tables_licensed_Aziende_1%' group by table_id_catcol_numcol order by count(distinct term_id), avgg").df().to_markdown())
+    #print(con.execute("SELECT table_id_catcol_numcol, count(distinct term_id) as co FROM Result_Table where table_id_catcol_numcol like 'allegro_con_spirito_tables_licensed%' group by table_id_catcol_numcol order by co").df().to_markdown())
     #print(con.execute('SELECT * FROM result_table order by rows desc limit 5').df())
     #print(con.execute('SELECT * FROM result_table order by columns desc limit 5').df())
 

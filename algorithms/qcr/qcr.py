@@ -15,9 +15,9 @@ from unicodedata import numeric
 #############################################
 
 
-def hash_function(obj: str) -> float:
+def hash_function(obj: object) -> float:
     """
-    Hashes a string to a value between 0 and 1
+    Hashes an object to a value between 0 and 1
     :param obj: String that needs to be hashed
     :return: hashed value
     """
@@ -25,9 +25,9 @@ def hash_function(obj: str) -> float:
         hashlib.md5(str(obj).encode("utf-8")).digest(), "big", signed=False
     ) / 2 ** 128
 
-def hash_md5(obj: str) -> int:
+def hash_md5(obj: object) -> int:
     """
-    Hashes a string to an integer value
+    Hashes an object to an integer value
     :param obj: String that needs to be hashed
     :return: hashed value
     """
@@ -54,6 +54,8 @@ def create_sketch(
     :return: sketch of size n for given columns
     """
     grouped = pd.DataFrame({'kc': kc, 'c': c}).groupby('kc').mean(numeric_only=True).reset_index()
+    grouped = grouped.dropna()
+
     sketch = heapq.nsmallest(n, zip(grouped["kc"], grouped["c"]), key=lambda x: hash_funct(x[0]))
     return sketch
 
@@ -66,8 +68,11 @@ def key_labeling(sketch: List[Tuple[str, numeric]], h: Callable[[str], int] = la
     :param h: hash function if hashed keys shall be labeled, nothing if literal keys shall be labeled
     :return: returns a two col table of labeled keys and values
     """
+    if not sketch:
+        return []
+
     mue = sum([value for key, value in sketch]) / len(sketch)
-    return [format(h(f'{f"{h(key):x}" if inner_hash else key}{"+1" if value > mue else "-1"}'), "x") for key, value in sketch]
+    return [format(h(f'{f"{h(key):032x}" if inner_hash else key}{"+1" if value > mue else "-1"}'), "032x") for key, value in sketch]
 
 
 def add_to_inverted_index(
@@ -197,7 +202,7 @@ def cross_product_tables(cat_col: DefaultDict[str, List[str]], num_col: DefaultD
     for cat_header in cat_col:
         for num_header in num_col:
             table = pd.DataFrame(list(zip(cat_col[cat_header], num_col[num_header])), columns=[cat_header, num_header])
-            table.columns.name = f"{table_id}_{cat_header}_{num_header}"  # here we use the column names as name for the new table
+            table.columns.name = f"{table_id}_|_{cat_header}_|_{num_header}"  # here we use the column names as name for the new table
             tables.append(table)
     return tables
 
