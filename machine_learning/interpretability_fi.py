@@ -6,8 +6,8 @@ from autogluon.tabular import TabularPredictor
 from matplotlib import pyplot as plt
 import matplotlib.colors as mcolors
 
-from machine_learning.ml_utils import load_split, remove_query
-from machine_learning.ml_who import QUERY_WHO, LABEL_WHO, model_path
+from machine_learning.ml_utils import load_split, remove_query, merge_tables
+from machine_learning.ml_who import QUERY_WHO, LABEL_WHO, model_path, who_data_best_fpath
 
 image_path = Path(__file__).parent / 'images' / 'fi'
 image_path.mkdir(exist_ok=True, parents=True)
@@ -61,10 +61,15 @@ def calc_feature_importance(
 
 
 if __name__ == '__main__':
-    train_data, test_data, _, _ = load_split('who')
-    train_data, test_data = remove_query(train_data, test_data, QUERY_WHO)
+    best_who_query = pd.read_csv(who_data_best_fpath, sep=';')
+    train_data, test_data, _, _ = load_split('who_grouped')
+    train_data = merge_tables(train_data, best_who_query, 0, 0, 5)
+    test_data = merge_tables(test_data, best_who_query, 0, 0, 5)
 
-    model_name = 'who_medium_0'
+    train_data, test_data = remove_query(train_data, test_data, QUERY_WHO)
+    train_data, test_data = remove_query(train_data, test_data, 'Adult Mortality')
+
+    model_name = 'who_grouped_best_no_mort_0'
     model_dst = model_path / model_name
     model = TabularPredictor.load(str(model_dst))
 

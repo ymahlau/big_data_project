@@ -16,6 +16,7 @@ def generate_indices(n: int) -> Tuple[List[int], List[int]]:
     row_idx_train = random.sample(row_idx, k=n_train)
     row_idx_test = list(set(row_idx) - set(row_idx_train))
     return row_idx_train, row_idx_test
+
 def remove_query(
         data_train: pd.DataFrame,
         data_test: pd.DataFrame,
@@ -24,6 +25,7 @@ def remove_query(
     data_train = data_train.loc[:, data_train.columns != query]
     data_test = data_test.loc[:, data_test.columns != query]
     return data_train, data_test
+
 def compute_splits(
         data: pd.DataFrame,
         idx_train: List[int],

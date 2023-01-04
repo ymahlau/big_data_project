@@ -42,7 +42,7 @@ if __name__ == '__main__':
     time_limit = 1200  # units are seconds
     retrain = True
     counter = 0
-    save_dst = model_path / f'who_grouped_best_{counter}'
+    save_dst = model_path / f'who_grouped_best_no_mort_{counter}'
     query = load_who_query()
     presets = 'best_quality'
 
@@ -65,6 +65,7 @@ if __name__ == '__main__':
     test_data = merge_tables(test_data, best_who_query, 0, 0, 5)
 
     train_data, test_data = remove_query(train_data, test_data, QUERY_WHO)
+    train_data, test_data = remove_query(train_data, test_data, 'Adult Mortality')
     if retrain:
         predictor = TabularPredictor(label=LABEL_WHO, path=save_dst, problem_type='regression')
         predictor.fit(train_data=train_data, time_limit=time_limit, presets=presets)
