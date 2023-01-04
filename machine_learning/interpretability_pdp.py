@@ -1,118 +1,161 @@
-import time
-from pathlib import Path
-from typing import Union, List, Optional
+from typing import Tuple, Union
 
-import plotly
+import numpy as np
+import pandas as pd
 from autogluon.tabular import TabularPredictor
-from interpret import show
-from interpret.blackbox import PartialDependence
-from interpret.blackbox.partialdependence import PDPExplanation
-from interpret.utils import gen_global_selector
-from interpret.visual.plot import plot_line, plot_bar
-from sklearn.base import BaseEstimator, RegressorMixin
+from matplotlib import pyplot as plt
 
 from machine_learning.ml_utils import load_split, remove_query
-from machine_learning.ml_who import QUERY_WHO, LABEL_WHO
-
-import pandas as pd
-
-model_path = Path(__file__).parent / 'models'
-image_path = Path(__file__).parent / 'images' / 'pdp'
-image_path.mkdir(exist_ok=True, parents=True)
-
-class SKLearnWrapper(BaseEstimator, RegressorMixin):
-    def __init__(
-            self,
-            model: TabularPredictor,
-            example_input: pd.DataFrame,
-    ):
-        self.model = model
-        self.estimator_type = "regressor"
-        self.columns = example_input.columns
-        self.dtype_dict = dict(example_input.dtypes)
-
-    def __sklearn_is_fitted__(self):
-        return True
-
-    def predict(self, X):
-        x_df = pd.DataFrame(X, columns=self.columns).astype(self.dtype_dict)
-        y_pred = self.model.predict(x_df)
-        return y_pred.values
-
-    def fit(self):
-        pass
+from machine_learning.ml_who import LABEL_WHO, QUERY_WHO, model_path
 
 
-def explain_single(
-        pdp: PartialDependence,
-        idx: int,
-        name: str,
-        num_ice_samples: int,
-) -> PDPExplanation:
-    feature_type = pdp.feature_types[idx]
-    explanation = PartialDependence._gen_pdp(
-        pdp.data,
-        pdp.predict_fn,
-        idx,
-        feature_type,
-        num_points=pdp.num_points,
-        std_coef=pdp.std_coef,
-        num_ice_samples=num_ice_samples,
-    )
-    feature_dict = {
-        "feature_values": explanation["values"],
-        "scores": explanation["scores"],
-        "upper_bounds": explanation["upper_bounds"],
-        "lower_bounds": explanation["lower_bounds"],
-    }
-    internal_obj = {
-        "overall": None,
-        "specific": [explanation],
-        "mli": [
-            {"explanation_type": "pdp", "value": {"feature_list": [feature_dict]}},
-            {"explanation_type": "density", "value": {"density": explanation["density"]}},
-        ],
-    }
-
-    selector = gen_global_selector(
-        pdp.data, pdp.feature_names, pdp.feature_types, None
-    )
-
-    return PDPExplanation(
-        "global",
-        internal_obj,
-        feature_names=pdp.feature_names,
-        feature_types=pdp.feature_types,
-        name=name,
-        selector=selector,
-    )
-
-
-def visualize_single(
-        explanation: PDPExplanation,
-        idx: int
-) -> plotly.graph_objs.Figure:
-    data_dict = explanation.data(0)
-    feature_type = explanation.feature_types[idx]
-    feature_name = explanation.feature_names[idx]
-    if feature_type == "continuous":
-        figure = plot_line(data_dict, title=feature_name)
-    elif feature_type == "categorical":
-        figure = plot_bar(data_dict, title=feature_name)
-    else:
-        raise Exception(f"Feature type {feature_type} is not supported.")
-
-    figure["layout"]["yaxis1"].update(title="Average Response")
-    return figure
-
-
-def calc_pdp(
+def calculate_ice(
         model: TabularPredictor,
+        X: np.ndarray,
+        s: int,
+        example_input: pd.DataFrame,
+):
+    """
+    Takes the input data and expands the dimensions from (num_instances, num_features) to (num_instances,
+    num_instances, num_features). For the current instance i and the selected feature index s, the
+    following equation is ensured: X_ice[i, :, s] == X[i, s].
+
+    Parameters:
+        model: Classifier which can call a predict method.
+        X (np.array with shape (num_instances, num_features)): Input data.
+        s (int): Index of the feature x_s.
+
+    Returns:
+        X_ice (np.array with shape (num_instances, num_instances, num_features)): Changed input data w.r.t. x_s.
+        y_ice (np.array with shape (num_instances, num_instances)): Predicted data.
+    """
+
+    num_instances, num_features = X.shape
+    x_s = X[:, s]
+    X_ice = X.repeat(num_instances).reshape((num_instances, num_features, -1)).transpose((2, 0, 1))
+    for i in range(num_instances):
+        X_ice[i, :, s] = x_s[i]
+
+    # convert np array back to pd dataframe
+    X_ice_flat = X_ice.reshape(-1, num_features)
+    X_ice_df = pd.DataFrame(X_ice_flat, columns=example_input.columns).astype(dict(example_input.dtypes))
+    y_ice_df = model.predict(X_ice_df)
+    # y_ice[i] = model.predict(X_ice.reshape(-1, 3)).reshape((num_instances, num_instances))
+    return X_ice, y_ice_df.values.reshape(num_instances, num_instances)
+
+
+def prepare_ice(
+        model: TabularPredictor,
+        X: np.ndarray,
+        s: int,
+        example_input: pd.DataFrame,
+        centered=False
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Uses `calculate_ice` to retrieve plot data.
+
+    Parameters:
+        model: Classifier which can call a predict method.
+        X (np.array with shape (num_instances, num_features)): Input data.
+        s (int): Index of the feature x_s.
+        centered (bool): Whether c-ICE should be used or not.
+
+    Returns:
+        all_x (list or 1D np.ndarray): List of lists of the x values.
+        all_y (list or 1D np.ndarray): List of lists of the y values.
+            Each entry in `all_x` and `all_y` represents one line in the plot.
+    """
+    num_instances, num_features = X.shape
+    all_x, all_y = calculate_ice(model, X, s, example_input)
+    x_s = X[:, s]
+    order = np.argsort(x_s)
+
+    all_x = x_s[order].repeat(num_instances).reshape((num_instances, num_instances))
+    all_y = all_y[order].T
+    all_x = all_x.T
+
+    if centered:
+        all_y -= np.reshape(all_y[:, 0], (-1, 1))
+
+    return all_x, all_y
+
+
+def plot_ice(
+        model: TabularPredictor,
+        X: np.ndarray,
+        s: int,
+        example_input: pd.DataFrame,
+        centered=False
+):
+    """
+    Creates a plot object and fills it with the content of `prepare_ice`.
+    Note: `show` method is not called.
+
+    Parameters:
+        model: Classifier which can call a predict method.
+        X (pd.DataFrame): data
+        s (int): Index of the feature x_s.
+        centered (bool): Whether c-ICE should be used or not.
+
+    """
+    all_x, all_y = prepare_ice(model, X, s, example_input, centered=centered)
+    for x_values, y_values in zip(all_x, all_y):
+        plt.plot(x_values, y_values, alpha=0.2, color='grey')
+
+
+def prepare_pdp(
+        model: TabularPredictor,
+        X: np.ndarray,
+        s: int,
+        example_input: pd.DataFrame,
+):
+    """
+    Uses `calculate_ice` to retrieve plot data for PDP.
+
+    Parameters:
+        model: Classifier which can call a predict method.
+        X (np.ndarray with shape (num_instances, num_features)): Input data.
+        s (int): Index of the feature x_s.
+
+    Returns:
+        x (list or 1D np.ndarray): x values of the PDP line.
+        y (list or 1D np.ndarray): y values of the PDP line.
+    """
+    X_ice, y_ice = calculate_ice(model, X, s, example_input)
+    x_s = X[:, s]
+    order = np.argsort(x_s)
+    x_s = x_s[order]
+
+    y = np.mean(y_ice[order].T, axis=0)
+    return x_s, y
+
+
+def plot_pdp(
+        model: TabularPredictor,
+        X: np.ndarray,
+        s: int,
+        example_input: pd.DataFrame,
+):
+    """
+    Creates a plot object and fills it with the content of `prepare_pdp`.
+    Note: `show` method is not called.
+
+    Parameters:
+        model: Classifier which can call a predict method.
+        data (np.ndarray with shape (num_instances, num_features)): Input data.
+        s (int): Index of the feature x_s.
+
+    Returns:
+        plt (matplotlib.pyplot or utils.styled_plot.plt)
+    """
+    x, y = prepare_pdp(model, X, s, example_input)
+    plt.plot(x, y, color='red')
+
+
+def get_index_and_name(
         data: pd.DataFrame,
         idx_or_name: Union[int, str],
-        num_points: int = 10,
-        num_ice_samples: int = 10,
-):
+) -> Tuple[int, str]:
     if isinstance(idx_or_name, int):
         idx = idx_or_name
         name = data.columns[idx_or_name]
@@ -121,28 +164,20 @@ def calc_pdp(
         name = idx_or_name
     else:
         raise ValueError('Unknown datatype for index/name')
+    return idx, name
 
-    data = data[data.notnull().all(axis=1)]  # pdp does not work with nan values
-    wrapper = SKLearnWrapper(model, data[:1])
-    pdp = PartialDependence(predict_fn=wrapper.predict, data=data, num_points=num_points)
-    explanation = explain_single(pdp, idx, name, num_ice_samples=num_ice_samples)
-    plotly_fig = visualize_single(explanation, idx)
-    plotly_fig.write_image(image_path / f'{name}_{num_points}_{num_ice_samples}.pdf')
 
-    # plotly_fig = pdp_single.visualize(0)
-    # pdp_global = pdp.explain_global()
-    # show(pdp_global)
-    # time.sleep(99999)
-
-def explain_who():
+if __name__ == '__main__':
     train_data, test_data, _, _ = load_split('who')
     train_data, test_data = remove_query(train_data, test_data, QUERY_WHO)
     train_data, test_data = train_data.drop(columns=[LABEL_WHO]), test_data.drop(columns=[LABEL_WHO])
 
+    example_input = train_data.iloc[0:2, :]
+
     model_dst = model_path / 'who_medium_0'
     model = TabularPredictor.load(str(model_dst))
 
-    calc_pdp(model, test_data, 'Adult Mortality', num_points=25, num_ice_samples=100)
-
-if __name__ == '__main__':
-    explain_who()
+    plt.figure()
+    # plot_ice(model, test_data.values, 2, example_input)
+    plot_pdp(model, test_data.values, 2, example_input)
+    plt.show()
