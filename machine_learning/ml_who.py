@@ -4,11 +4,13 @@ import pandas as pd
 from autogluon.tabular import TabularPredictor
 
 from machine_learning.ml_utils import prepare_datasets, generate_indices, compute_splits, save_split, load_split, \
-    remove_query
+    remove_query, merge_tables
 
 model_path = Path(__file__).parent / 'models'
 model_path.mkdir(exist_ok=True, parents=True)
 who_data_fpath = Path(__file__).parent.parent / 'data' / 'real_data' / 'Life_Expectancy_Data.csv'
+who_data_best_fpath = Path(__file__).parent.parent / 'data' / 'results' / 'who_best_query.csv'
+who_data_best_merged_fpath = Path(__file__).parent.parent / 'data' / 'merged' / 'who_best_query.csv'
 
 QUERY_WHO = 'Country'
 LABEL_WHO = 'Life expectancy '
@@ -31,26 +33,34 @@ def load_who_query() -> pd.DataFrame:
     return query_with_duplicates
 
 if __name__ == '__main__':
-    time_limit = 600  # units are seconds
-    retrain = True
+    time_limit = 1200  # units are seconds
+    retrain = False
     counter = 0
     save_dst = model_path / f'who_medium_{counter}'
     query = load_who_query()
+    presets = 'best_quality'
+    best_who_query = pd.read_csv(who_data_best_fpath, sep=';')
 
     train_data, test_data, _, _ = load_split('who')
+    train_data_new = merge_tables(train_data, best_who_query, 0, 0, 5)
+    test_data_new = merge_tables(test_data, best_who_query, 0, 0, 5)
+
+    train_data_new, test_data_new = remove_query(train_data_new, test_data_new, QUERY_WHO)
     train_data, test_data = remove_query(train_data, test_data, QUERY_WHO)
 
     if retrain:
         predictor = TabularPredictor(label=LABEL_WHO, path=save_dst, problem_type='regression')
-        predictor.fit(train_data=train_data, time_limit=time_limit)
+        predictor.fit(train_data=train_data_new, time_limit=time_limit, presets=presets)
     else:
         predictor = TabularPredictor.load(str(save_dst))
 
     performance = predictor.evaluate(test_data)
+    print(performance)
     leaderboard = predictor.leaderboard(test_data)
+    print(leaderboard)
 
-    test_data_no_label = test_data.drop(columns=[LABEL_WHO])
-    y_pred = predictor.predict(test_data_no_label)
-    y_true = test_data[LABEL_WHO]
+    # test_data_no_label = test_data.drop(columns=[LABEL_WHO])
+    # y_pred = predictor.predict(test_data_no_label)
+    # y_true = test_data[LABEL_WHO]
 
     print('Done')

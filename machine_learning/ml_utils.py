@@ -61,6 +61,21 @@ def save_split(
     with open(cur_path / 'query.txt', 'w') as f:
         f.write(query)
 
+def merge_tables(
+        original_table: pd.DataFrame,
+        new_table: pd.DataFrame,
+        original_query_idx,
+        new_query_idx: int,
+        new_numeric_idx: int,
+) -> pd.DataFrame:
+    new_table_reduced = new_table.iloc[:, [new_query_idx, new_numeric_idx]]
+    original_query_name = original_table.columns[original_query_idx]
+    new_query_name = new_table_reduced.columns[0]
+
+    merged = original_table.merge(new_table_reduced, how='left', left_on=original_query_name, right_on=new_query_name)
+    merged = merged.drop(new_query_name, axis=1)  # remove duplicate query
+    return merged
+
 def load_split(
         name: str,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, str, str]:
