@@ -88,6 +88,25 @@ def add_to_inverted_index(
     for key in terms:
         inverted_index[key].add(value)
 
+def get_labels_for_table(df_in: pd.DataFrame, sketch_size: int) -> Tuple[List[Union[int, str]], List[Union[int, str]]]:
+    """
+    Creates a sketch for each column in the given table and labels the keys in the sketch.
+    :param df_in: table to be labeled
+    :param sketch_size: size of sketch per column
+    :return: list of labeled keys and list of corresponding column names
+    """
+    c_col = get_kc(df_in)
+    n_col = get_c(df_in)
+    cross_product_tables_list = cross_product_tables(c_col, n_col, df_in.columns.name)
+    list1, list2 = [], []
+    for i in cross_product_tables_list:
+        sketch = create_sketch(i.iloc[:, 0], i.iloc[:, 1], hash_md5, n=128)
+        labels = key_labeling(sketch, hash_md5, inner_hash=False)
+        list1.extend(labels)
+        list2.extend([i.columns.name] * len(labels))
+    
+    return list1, list2
+
 
 def build_index(tables: List[pd.DataFrame], n=100) -> None:
     """
