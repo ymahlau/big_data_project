@@ -1,5 +1,6 @@
 import argparse
 from pathlib import Path
+import time
 import pandas as pd
 from typing import List, Optional
 import duckdb
@@ -56,6 +57,15 @@ def search_qcr(
     ).df()
     print(result_df.to_markdown())
     return result_df["table_id_catcol_numcol"].tolist()
+
+def compare_results(ground_truth: List[str], result: List[str]) -> None:
+    intersection = set(ground_truth).intersection(set(result))
+    prescision = len(intersection) / len(result)
+    recall = len(intersection) / len(ground_truth)
+    print(f"Precision: {prescision}")
+    print(f"Recall: {recall}")
+    print(f"F1: {2 * prescision * recall / (prescision + recall)}")
+    
 
 
 if __name__ == "__main__":
@@ -119,7 +129,9 @@ if __name__ == "__main__":
         query_df = pd.read_csv(args.query_path, sep=";")
         query_df = query_df[[args.categorical_column, args.numerical_column]]
         # Execute the qcr search method
-        search_qcr(query_df, con, args.result_size, args.query_sketch_size)
+        start = time.time()
+        qcr_result = search_qcr(query_df, con, args.result_size, args.query_sketch_size)
+        qcr_time = time.time() - start
     if args.search_method == "naive" or args.compare_naive:
         # Execute the naive search method
         database_path = (
@@ -128,5 +140,14 @@ if __name__ == "__main__":
             / f"{args.datalake}tables_{args.search_method}_{args.query if args.search_method == 'naive' else args.compare_naive}.db"
         )
         con = duckdb.connect(str(database_path))
-        search_naive(con, args.result_size)
+        start = time.time()
+        naive_result = search_naive(con, args.result_size)
+        naive_time = time.time() - start
+    if args.compare_naive:
+        # Compare the naive and qcr search method
+        compare_results(naive_result, qcr_result)
+        # Print the execution time
+        print(f"Naive search time: {naive_time}")
+        print(f"QCR search time: {qcr_time}")
+
     
