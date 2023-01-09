@@ -42,9 +42,11 @@ if __name__ == '__main__':
     time_limit = 1200  # units are seconds
     retrain = True
     counter = 0
-    save_dst = model_path / f'who_grouped_best_no_mort_{counter}'
+    save_dst = model_path / f'who_0'
     query = load_who_query()
     presets = 'best_quality'
+    num_added_cols = 5
+    grouped = False
 
     # who_data = load_who_data()
     # idx_train, idx_test = generate_indices(len(who_data))
@@ -58,11 +60,15 @@ if __name__ == '__main__':
     # save_split('who_grouped', data_train, data_test, LABEL_WHO, QUERY_WHO)
     # train_data, test_data, _, _ = load_split('who_grouped')
 
-    best_who_query = pd.read_csv(who_data_best_fpath, sep=';')
-    # train_data, test_data, _, _ = load_split('who')
-    train_data, test_data, _, _ = load_split('who_grouped')
-    train_data = merge_tables(train_data, best_who_query, 0, 0, 5)
-    test_data = merge_tables(test_data, best_who_query, 0, 0, 5)
+    who_with_new_cols = pd.read_csv(Path(__file__).parent.parent / 'data' / 'results' / 'who_5.csv', index_col=0)
+    if not grouped:
+        train_data, test_data, _, _ = load_split('who')
+    else:
+        train_data, test_data, _, _ = load_split('who_grouped')
+
+    for i in range(-5, -5 + num_added_cols):
+        train_data = merge_tables(train_data, who_with_new_cols, 0, 0, i)
+        test_data = merge_tables(test_data, who_with_new_cols, 0, 0, i)
 
     train_data, test_data = remove_query(train_data, test_data, QUERY_WHO)
     train_data, test_data = remove_query(train_data, test_data, 'Adult Mortality')
