@@ -5,9 +5,6 @@ import pandas as pd
 from autogluon.tabular import TabularPredictor
 from matplotlib import pyplot as plt
 
-from machine_learning.ml_utils import load_split, remove_query
-from machine_learning.ml_who import LABEL_WHO, QUERY_WHO, model_path
-
 
 def calculate_ice(
         model: TabularPredictor,
@@ -99,8 +96,12 @@ def plot_ice(
 
     """
     all_x, all_y = prepare_ice(model, X, s, example_input, centered=centered)
-    for x_values, y_values in zip(all_x, all_y):
-        plt.plot(x_values, y_values, alpha=0.2, color='grey')
+    for i, data_tpl in enumerate(zip(all_x, all_y)):
+        x_values, y_values = data_tpl
+        if i == 0:
+            plt.plot(x_values, y_values, alpha=0.2, color='grey', label='Individual Conditional Expectation')
+        else:
+            plt.plot(x_values, y_values, alpha=0.2, color='grey')
 
 
 def prepare_pdp(
@@ -149,7 +150,7 @@ def plot_pdp(
         plt (matplotlib.pyplot or utils.styled_plot.plt)
     """
     x, y = prepare_pdp(model, X, s, example_input)
-    plt.plot(x, y, color='red')
+    plt.plot(x, y, color='red', label='Partial Dependence')
 
 
 def get_index_and_name(
@@ -166,18 +167,3 @@ def get_index_and_name(
         raise ValueError('Unknown datatype for index/name')
     return idx, name
 
-
-if __name__ == '__main__':
-    train_data, test_data, _, _ = load_split('who')
-    train_data, test_data = remove_query(train_data, test_data, QUERY_WHO)
-    train_data, test_data = train_data.drop(columns=[LABEL_WHO]), test_data.drop(columns=[LABEL_WHO])
-
-    example_input = train_data.iloc[0:2, :]
-
-    model_dst = model_path / 'who_medium_0'
-    model = TabularPredictor.load(str(model_dst))
-
-    plt.figure()
-    # plot_ice(model, test_data.values, 2, example_input)
-    plot_pdp(model, test_data.values, 2, example_input)
-    plt.show()
