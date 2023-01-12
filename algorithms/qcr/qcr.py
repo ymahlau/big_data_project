@@ -100,7 +100,7 @@ def get_labels_for_table(df_in: pd.DataFrame, sketch_size: int) -> Tuple[List[Un
     cross_product_tables_list = cross_product_tables(c_col, n_col, df_in.columns.name)
     list1, list2 = [], []
     for i in cross_product_tables_list:
-        sketch = create_sketch(i.iloc[:, 0], i.iloc[:, 1], hash_md5, n=128)
+        sketch = create_sketch(i.iloc[:, 0], i.iloc[:, 1], hash_md5, n=sketch_size)
         labels = key_labeling(sketch, hash_md5, inner_hash=False)
         list1.extend(labels)
         list2.extend([i.columns.name] * len(labels))
