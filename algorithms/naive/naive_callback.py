@@ -15,7 +15,7 @@ class NaiveCallback:
         self.agg_method = agg_method
         if self.agg_method == 'avg':
             query_cat_col_name = query.select_dtypes(include=["object"]).columns[0]
-            self.query = clean_dataframe(query).groupby(query_cat_col_name).mean(numeric_only=True).reset_index()
+            self.query = query.groupby(query_cat_col_name).mean(numeric_only=True).reset_index()
         else:
             raise ValueError('Unknown Aggregation method')
 
@@ -35,7 +35,7 @@ class NaiveCallback:
         """
         result = pd.DataFrame({"column_header": [], "joinability": [], "correlation": []})
         query_col_name = self.query.select_dtypes(include=["object"]).columns[0]
-        table = clean_dataframe(table)
+        # table = clean_dataframe(table)
 
         for cat_column in table.select_dtypes(include=["object"]).columns:
             table_grouped = table.groupby(cat_column).mean(numeric_only=True).reset_index()
