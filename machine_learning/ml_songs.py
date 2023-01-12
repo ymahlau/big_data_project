@@ -4,11 +4,11 @@ from typing import Tuple
 import pandas as pd
 from autogluon.tabular import TabularDataset, TabularPredictor
 
-from ml_utils import generate_indices
+from machine_learning.ml_utils import generate_indices
 
 model_path = Path(__file__).parent / 'models'
 model_path.mkdir(exist_ok=True, parents=True)
-who_data_fpath = Path(__file__).parent / 'data' / 'song_data.csv'
+who_data_fpath = Path(__file__).parent.parent / 'data' / 'real_data' / 'song_data.csv'
 
 def load_song_data() -> pd.DataFrame:
     df_song = pd.read_csv(who_data_fpath, sep=',')
