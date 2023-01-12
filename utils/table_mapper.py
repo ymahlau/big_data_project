@@ -16,7 +16,7 @@ def chunk2result(callback: Callable[[pd.DataFrame], pd.DataFrame], part: any) ->
         try:
             return callback(df)
         except Exception as e:
-            print(e)
+            print(df.columns.name, e)
             return None
     return None
 
